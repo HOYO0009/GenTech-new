@@ -7,11 +7,18 @@
 
 ## 🎯 Tech Stack
 
+### 🖥️ Backend
 - **Runtime:** Bun (fast, TypeScript-native)
 - **Framework:** Hono (lightweight, edge-ready)
 - **Database:** SQLite via Drizzle ORM
 - **Validation:** Zod (runtime type safety)
 - **Language:** TypeScript (strict mode)
+
+---
+
+### 🎨 Frontend (Ultra-Minimal)
+
+- **HTMX + Alpine.js + Tailwind CSS**
 
 ---
 
