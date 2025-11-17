@@ -22,6 +22,20 @@
 
 ---
 
+## General Coding Principles
+
+### 1. SOLID: A set of five principles for object-oriented design:
+- Single Responsibility Principle
+- Open/Closed Principle
+- Liskov Substitution Principle
+- Interface Segregation Principle
+- Dependency Inversion Principle
+### 2. DRY (Don't Repeat Yourself): Avoid duplicating the same code in multiple places.
+### 3. KISS (Keep It Simple, Stupid): Write the simplest code possible, avoiding unnecessary complexity.
+### 4. YAGNI (You Ain't Gonna Need It): Don't add functionality until it is actually required. 
+
+---
+
 ## ✨ Vibe Coding Principles
 
 ### 1. **Type Safety is Non-Negotiable**

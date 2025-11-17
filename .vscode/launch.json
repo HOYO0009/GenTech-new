@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Bun dev server",
+      "type": "pwa-node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "C:\\\\Users\\\\hoyon\\\\AppData\\\\Local\\\\bun\\\\bun-windows-x64\\\\bun.exe",
+      "runtimeArgs": ["run", "dev"],
+      "console": "integratedTerminal",
+      "outputCapture": "std",
+      "env": {
+        "BUN_DEBUG": "1"
+      }
+    }
+  ]
+}
