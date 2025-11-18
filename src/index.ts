@@ -1,5 +1,11 @@
 import { Hono } from 'hono'
-import { listProducts, ProductSummary, updateProduct } from './db'
+import {
+  listProductStatuses,
+  listProducts,
+  ProductSummary,
+  ProductStatus,
+  updateProduct,
+} from './db'
 
 const app = new Hono()
 
@@ -15,7 +21,8 @@ const escapeHtml = (value: string) =>
 
 const formatMoney = (amount: number | null) => {
   if (amount === null || Number.isNaN(amount)) return '—'
-  return `$${amount.toFixed(2)}`
+  const dollars = amount / 100
+  return `$${dollars.toFixed(2)}`
 }
 
 const homepage = `<!DOCTYPE html>
@@ -77,13 +84,13 @@ const homepage = `<!DOCTYPE html>
   </body>
 </html>`
 
-const productPage = (products: ProductSummary[]) => {
+const productPage = (products: ProductSummary[], statuses: ProductStatus[]) => {
   const productCards = products.length
     ? products
-        .map(({ sku, name, status, cost, supplier, supplierLink }) => {
+        .map(({ sku, name, statusId, statusName, cost, supplier, supplierLink }) => {
           const safeSku = escapeHtml(sku)
           const safeName = escapeHtml(name)
-          const safeStatus = escapeHtml(status)
+          const safeStatus = escapeHtml(statusName)
           const safeSupplier = supplier ? escapeHtml(supplier) : null
           const safeLink = supplierLink ? escapeHtml(supplierLink) : null
           const displayCost = formatMoney(cost)
@@ -110,11 +117,18 @@ const productPage = (products: ProductSummary[]) => {
               </label>
               <label class="text-xs uppercase tracking-[0.3em] text-slate-400 block">
                 Status
-                <input
+                <select
                   class="mt-1 w-full rounded border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-sky-400 focus:outline-none"
                   name="status"
-                  value="${safeStatus}"
-                />
+                >
+                  ${statuses
+                    .map(({ id, name: optionName }) => {
+                      const safeOption = escapeHtml(optionName)
+                      const selected = id === statusId ? ' selected' : ''
+                      return `<option value="${id}"${selected}>${safeOption}</option>`
+                    })
+                    .join('')}
+                </select>
               </label>
               <p class="text-slate-400 text-xs uppercase tracking-[0.3em]">Cost: ${displayCost}</p>
               ${
@@ -170,21 +184,26 @@ const productPage = (products: ProductSummary[]) => {
 app.get('/', (c) => c.html(homepage))
 
 app.get('/products', async (c) => {
-  const products = await listProducts()
-  return c.html(productPage(products))
+  const [products, statuses] = await Promise.all([listProducts(), listProductStatuses()])
+  return c.html(productPage(products, statuses))
 })
 
 app.post('/products/update', async (c) => {
   const form = await c.req.formData()
   const sku = (form.get('sku') ?? '').toString().trim()
   const name = (form.get('name') ?? '').toString().trim()
-  const status = (form.get('status') ?? 'active').toString().trim()
+  const requestedStatusId = Number(form.get('status'))
+  const statuses = await listProductStatuses()
+  if (!statuses.length) {
+    return c.html('<div class="px-3 py-2 text-amber-400">Status configuration missing.</div>', 500)
+  }
+  const validStatus = statuses.find(({ id }) => id === requestedStatusId) ?? statuses[0]
 
   if (!sku || !name) {
     return c.html('<div class="px-3 py-2 text-amber-400">SKU and name are required.</div>', 400)
   }
 
-  const updated = await updateProduct(sku, name, status || 'active')
+  const updated = await updateProduct(sku, name, validStatus.id)
   if (updated) {
     return c.html('<div class="px-3 py-2 text-emerald-300">Product saved.</div>', 200)
   }

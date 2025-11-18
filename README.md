@@ -25,14 +25,20 @@
 ## General Coding Principles
 
 ### 1. SOLID: A set of five principles for object-oriented design:
-- Single Responsibility Principle
-- Open/Closed Principle
-- Liskov Substitution Principle
-- Interface Segregation Principle
-- Dependency Inversion Principle
-### 2. DRY (Don't Repeat Yourself): Avoid duplicating the same code in multiple places.
-### 3. KISS (Keep It Simple, Stupid): Write the simplest code possible, avoiding unnecessary complexity.
-### 4. YAGNI (You Ain't Gonna Need It): Don't add functionality until it is actually required. 
+- **Single Responsibility Principle**: A module, class, or function should have one reason to change. Keep responsibilities focused and avoid mixing unrelated tasks.
+- **Open/Closed Principle**: Code should be open for extension but closed for modification. You should be able to add new features without altering existing, stable code.
+- **Liskov Substitution Principle**: Subtypes should be usable anywhere their base type is expected, without altering the correctness of the program.
+- **Interface Segregation Principle**: Prefer small, specific interfaces over large, general ones. Don’t force code to depend on methods it doesn’t need.
+- **Dependency Inversion Principle**: High-level modules should depend on abstractions rather than concrete implementations. This makes systems more flexible and testable.
+
+### 2. DRY (Don't Repeat Yourself):  
+Avoid duplicating the same logic in multiple places. Centralize shared behavior so changes only need to be made once.
+
+### 3. KISS (Keep It Simple, Stupid):  
+Favor simple, clear solutions over complex or overly clever implementations. Simple code is easier to maintain, debug, and understand.
+
+### 4. YAGNI (You Ain't Gonna Need It):  
+Don’t implement features or abstractions until they are actually needed. Avoid over-engineering based on guesses about future requirements.
 
 ---
 
@@ -57,6 +63,7 @@
 - **ALWAYS** store currency as integers (cents)
 - Never use floats for money calculations
 - Use transactions for financial operations
+> All money columns (products, pricing, purchases, finance entries, discounts, etc.) persist cents so the schema and ORM types stay consistent.
 
 ### 5. **Transactions for Consistency**
 - Multiple related changes = one transaction
@@ -321,32 +328,6 @@ app.post('/orders', async (c) => {
   const order = await orderService.create(data)
   return c.json(order, 201)
 })
-```
-
----
-
-## 📁 Project Structure
-
-```
-src/
-├── db/
-│   ├── schema.ts          # All table definitions
-│   ├── index.ts           # Database client
-│   └── migrations/        # Schema versioning
-├── services/
-│   ├── products.ts        # Business logic
-│   ├── orders.ts
-│   └── inventory.ts
-├── validators/
-│   ├── product.ts         # Zod schemas
-│   └── order.ts
-├── routes/
-│   ├── products.ts        # Thin route handlers
-│   └── orders.ts
-├── utils/
-│   ├── money.ts           # Currency helpers
-│   └── errors.ts          # Custom error classes
-└── index.ts               # App entry point
 ```
 
 ---
