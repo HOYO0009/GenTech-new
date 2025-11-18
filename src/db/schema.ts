@@ -63,7 +63,7 @@ export const listingShops = sqliteTable('listing_shops', {
   description: text('description'),
 })
 
-export const platformPricing = sqliteTable('platform_pricing', {
+export const productPricing = sqliteTable('product_pricing', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   productSku: text('product_sku').notNull().references(() => products.sku),
   shopId: integer('shop_id').notNull().references(() => shops.id),
@@ -74,6 +74,35 @@ export const platformPricing = sqliteTable('platform_pricing', {
   maxAff: real('max_aff'),
   competitorPrice: real('competitor_price'),
   competitorLink: text('competitor_link'),
+})
+
+export const voucherDiscountTypes = sqliteTable('voucher_discount_types', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  key: text('key').notNull().unique(),
+  label: text('label').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
+export const voucherTypes = sqliteTable('voucher_types', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
+export const vouchers = sqliteTable('vouchers', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  shopId: integer('shop_id').notNull().references(() => shops.id),
+  minSpend: real('min_spend').notNull(),
+  discount: real('discount').notNull(),
+  maxDiscount: real('max_discount'),
+  voucherDiscountTypeId: integer('voucher_discount_type_id')
+    .notNull()
+    .default(1)
+    .references(() => voucherDiscountTypes.id),
+  voucherTypeId: integer('voucher_type_id')
+    .notNull()
+    .references(() => voucherTypes.id),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 })
 
 export const changeLogs = sqliteTable('change_logs', {
@@ -88,3 +117,13 @@ export const changeLogs = sqliteTable('change_logs', {
 
 export type Product = typeof products.$inferSelect
 export type NewProduct = typeof products.$inferInsert
+
+export type ProductPricing = typeof productPricing.$inferSelect
+export type NewProductPricing = typeof productPricing.$inferInsert
+
+export type VoucherDiscountType = typeof voucherDiscountTypes.$inferSelect
+export type NewVoucherDiscountType = typeof voucherDiscountTypes.$inferInsert
+export type VoucherType = typeof voucherTypes.$inferSelect
+export type NewVoucherType = typeof voucherTypes.$inferInsert
+export type Voucher = typeof vouchers.$inferSelect
+export type NewVoucher = typeof vouchers.$inferInsert

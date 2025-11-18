@@ -19,7 +19,45 @@
 ### 🎨 Frontend (Ultra-Minimal)
 
 - **HTMX + Alpine.js + Tailwind CSS**
-
+- Visual identity
+  - Typography
+    - Use the `Space Grotesk` / `Inter` type stack for all text.
+    - Microcopy (labels, buttons, small UI text) should be uppercase or small-caps for consistency.
+  - Color palette
+    - **Primary accent (red)**: `#b41f26` (default) → `#ff2b2b` (hover).
+    - **Surfaces**: charcoal-like dark tones; primary panel background `rgba(15,15,15,0.85)`.
+    - **Text**: white or cream; maintain strong contrast—minimum **3:1** for UI elements.
+    - **Borders & highlights**: light, high-visibility strokes to support clarity on dark panels.
+  - Spacing system
+    - **Panels**: 1.5rem internal padding.
+    - **Section layouts**: 2rem between major blocks.
+    - **Form controls**: 0.5rem between inputs, labels, and helper text.
+    - Maintain these ratios across new UI to prevent spacing drift.
+  - Components
+    - **Panels**: dark, semi-opaque backgrounds with subtle borders and consistent corner radii.
+    - **Buttons**: compact uppercase labels, `letter-spacing: 0.3em`, pill-shaped radius for primary/secondary actions, using the shared red accent (`#b41f26` → `#ff2b2b` hover) with at least **3:1** contrast.
+    - **Inputs & forms**: controls must stand out from their container with sufficient contrast; labels, hints, and inline validation stay in small-caps.
+  - Consistency rules
+    - When adding new components, adhere to the established palette—charcoal backgrounds, white/cream text, red accent, and clear contrast borders.
+    - Avoid off-palette colors or spacing unless a component explicitly requires variation.
+    - Typography, spacing, and color decisions should reinforce the same visual rhythm already established in the core UI.
+    - Font size must always follow text hierarchy for consistency between different pages.
+  -- Text hierarchy
+    - **Headings**
+      - **Display / Hero**: `Space Grotesk`, **2rem**, weight 600 — rare use; landing sections or top-level titles.
+      - **H1 (page title)**: `Space Grotesk`, **1.6rem**, weight 600 — main page titles; crisp, not oversized.
+      - **H2 (section header)**: `Space Grotesk`, **1.3rem**, weight 600 — section headers.
+      - **H3 (sub-section)**: `Space Grotesk` / `Inter`, **1.15rem**, weight 500–600 — subsection headers and card titles.
+      - **H4 (minor heading)**: `Space Grotesk` / `Inter`, **1.05rem**, weight 500 — minor headings; optional uppercase if needed.
+    - **Body & content**
+      - **Body (default)**: `Inter`, **0.95rem**, weight 400 — primary reading size; balanced on dark backgrounds.
+      - **Body small**: `Inter`, **0.9rem**, weight 400 — secondary text, muted descriptions.
+      - **Lead / intro**: `Inter`, **1.05rem**, weight 400 — slightly elevated for short intros or key statements.
+    - **UI text**
+      - **Button text**: `Space Grotesk`, **0.85rem**, weight 600 — always uppercase, `letter-spacing: 0.3em`.
+      - **Label / microcopy**: `Inter`, **0.8rem**, weight 500 — uppercase or small-caps; consistent across forms.
+      - **Tooltip / caption**: `Inter`, **0.75rem**, weight 400–500 — minimal but still readable on dark UI.
+      - **Badge / tag**: `Space Grotesk`, **0.7rem**, weight 600 — high-contrast background recommended.
 ---
 
 ## General Coding Principles
@@ -66,7 +104,7 @@ Don’t implement features or abstractions until they are actually needed. Avoid
 - **ALWAYS** store currency as integers (cents)
 - Never use floats for money calculations
 - Use transactions for financial operations
-> All money columns (products, pricing, purchases, finance entries, discounts, etc.) persist cents so the schema and ORM types stay consistent.
+> All money columns (products, pricing, purchases, finance entries, vouchers, etc.) persist cents so the schema and ORM types stay consistent.
 
 ### 5. **Transactions for Consistency**
 - Multiple related changes = one transaction

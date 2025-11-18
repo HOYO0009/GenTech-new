@@ -1,6 +1,13 @@
 import { escapeHtml, formatMoney } from '../domain/formatters'
 import { recordChange } from './changeLogs'
-import { listProductStatuses, listProducts, ProductStatus, ProductSummary, updateProduct } from '../db/products'
+import {
+  listProductStatuses,
+  listProducts,
+  listSuppliers,
+  ProductStatus,
+  ProductSummary,
+  updateProduct,
+} from '../db/products'
 
 export interface ProductCard {
   sku: string
@@ -11,6 +18,9 @@ export interface ProductCard {
   supplierName: string | null
   supplierLink: string | null
   hasSupplierLink: boolean
+  purchaseRemarks: string
+  costCents: number | null
+  supplierId: number | null
 }
 
 export interface ProductStatusOption {
@@ -18,15 +28,26 @@ export interface ProductStatusOption {
   name: string
 }
 
+export interface SupplierOption {
+  id: number
+  name: string
+}
+
 export interface ProductPagePayload {
   products: ProductCard[]
   statuses: ProductStatusOption[]
+  suppliers: SupplierOption[]
 }
 
 export interface ProductUpdateArgs {
+  originalSku: string
   sku: string
   name: string
   requestedStatusId: number
+  costCents: number | null
+  purchaseRemarks: string
+  supplierId: number | null
+  supplierLink: string
 }
 
 export interface ProductUpdateResult {
@@ -45,6 +66,9 @@ const productToCard = (product: ProductSummary): ProductCard => {
     supplierName: product.supplierName ? escapeHtml(product.supplierName) : null,
     supplierLink: sanitizedSupplierLink,
     hasSupplierLink: Boolean(product.supplierLink && product.supplierLink.trim()),
+    purchaseRemarks: product.purchaseRemarks ? escapeHtml(product.purchaseRemarks) : '',
+    costCents: product.cost ?? null,
+    supplierId: product.supplierId ?? null,
   }
 }
 
@@ -53,20 +77,40 @@ const statusToOption = (status: ProductStatus): ProductStatusOption => ({
   name: escapeHtml(status.name),
 })
 
+const supplierToOption = (supplier: { id: number; name: string }): SupplierOption => ({
+  id: supplier.id,
+  name: escapeHtml(supplier.name),
+})
+
 export async function getProductPagePayload(): Promise<ProductPagePayload> {
-  const [products, statuses] = await Promise.all([listProducts(), listProductStatuses()])
+  const [products, statuses, suppliers] = await Promise.all([
+    listProducts(),
+    listProductStatuses(),
+    listSuppliers(),
+  ])
 
   return {
     products: products.map(productToCard),
     statuses: statuses.map(statusToOption),
+    suppliers: suppliers.map(supplierToOption),
   }
 }
 
-export async function updateProductDetails({ sku, name, requestedStatusId }: ProductUpdateArgs): Promise<ProductUpdateResult> {
+export async function updateProductDetails({
+  originalSku,
+  sku,
+  name,
+  requestedStatusId,
+  costCents,
+  purchaseRemarks,
+  supplierId,
+  supplierLink,
+}: ProductUpdateArgs): Promise<ProductUpdateResult> {
+  const trimmedOriginalSku = originalSku.trim()
   const trimmedSku = sku.trim()
   const trimmedName = name.trim()
 
-  if (!trimmedSku || !trimmedName) {
+  if (!trimmedOriginalSku || !trimmedSku || !trimmedName) {
     return { message: 'SKU and name are required.', status: 400 }
   }
 
@@ -77,7 +121,18 @@ export async function updateProductDetails({ sku, name, requestedStatusId }: Pro
 
   const validStatus = statuses.find(({ id }) => id === requestedStatusId) ?? statuses[0]
 
-  const updated = await updateProduct(trimmedSku, trimmedName, validStatus.id)
+  const normalizedRemarks = purchaseRemarks.trim()
+  const normalizedSupplierLink = supplierLink.trim()
+  const updated = await updateProduct({
+    originalSku: trimmedOriginalSku,
+    newSku: trimmedSku,
+    name: trimmedName,
+    statusId: validStatus.id,
+    cost: costCents,
+    purchaseRemarks: normalizedRemarks || null,
+    supplierId,
+    supplierLink: normalizedSupplierLink || null,
+  })
   if (!updated) {
     return { message: 'Product not found.', status: 404 }
   }
@@ -86,12 +141,17 @@ export async function updateProductDetails({ sku, name, requestedStatusId }: Pro
     await recordChange({
       tableName: 'products',
       action: 'UPDATE',
-      description: `SKU ${trimmedSku} updated to "${trimmedName}" (status ${validStatus.name})`,
+      description: `SKU ${trimmedOriginalSku} updated to "${trimmedSku}" (status ${validStatus.name})`,
       payload: {
+        originalSku: trimmedOriginalSku,
         sku: trimmedSku,
         name: trimmedName,
         statusId: validStatus.id,
         statusName: validStatus.name,
+        cost: costCents,
+        purchaseRemarks: normalizedRemarks,
+        supplierId,
+        supplierLink: normalizedSupplierLink,
       },
       source: 'products/update',
     })

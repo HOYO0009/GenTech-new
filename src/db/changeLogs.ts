@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { sql, desc } from 'drizzle-orm'
 import { db } from './connection'
 import { changeLogs } from './schema'
 
@@ -42,7 +42,7 @@ export async function listRecentChanges(limit = 40) {
       source: changeLogs.source,
     })
     .from(changeLogs)
-    .orderBy(changeLogs.occurredAt, 'desc')
+    .orderBy(desc(changeLogs.occurredAt))
     .limit(limit)
     .all()
 }

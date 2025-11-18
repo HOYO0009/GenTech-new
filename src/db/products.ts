@@ -11,6 +11,8 @@ export type ProductSummary = {
   cost: Product['cost']
   supplierLink: Product['supplierLink']
   supplierName: string | null
+  supplierId: Product['supplierId']
+  purchaseRemarks: Product['purchaseRemarks']
 }
 
 export type ProductStatus = {
@@ -27,6 +29,8 @@ export async function listProducts(): Promise<ProductSummary[]> {
       statusName: productStatuses.name,
       cost: products.cost,
       supplierLink: products.supplierLink,
+      supplierId: suppliers.id,
+      purchaseRemarks: products.purchaseRemarks,
       supplierName: suppliers.name,
     })
     .from(products)
@@ -34,7 +38,7 @@ export async function listProducts(): Promise<ProductSummary[]> {
     .leftJoin(suppliers, eq(suppliers.id, products.supplierId))
     .orderBy(products.sku)
 
-  return rows.map(({ sku, name, statusId, statusName, cost, supplierName, supplierLink }) => ({
+  return rows.map(({ sku, name, statusId, statusName, cost, supplierName, supplierLink, purchaseRemarks, supplierId }) => ({
     sku,
     name,
     statusId,
@@ -42,14 +46,42 @@ export async function listProducts(): Promise<ProductSummary[]> {
     cost,
     supplierLink,
     supplierName,
+    supplierId,
+    purchaseRemarks,
   }))
 }
 
-export async function updateProduct(sku: string, name: string, statusId: number) {
+export async function updateProduct({
+  originalSku,
+  newSku,
+  name,
+  statusId,
+  cost,
+  purchaseRemarks,
+  supplierId,
+  supplierLink,
+}: {
+  originalSku: string
+  newSku: string
+  name: string
+  statusId: number
+  cost: number | null
+  purchaseRemarks: string | null
+  supplierId: number | null
+  supplierLink: string | null
+}) {
   const rows = await db
     .update(products)
-    .set({ name, statusId })
-    .where(eq(products.sku, sku))
+    .set({
+      sku: newSku,
+      name,
+      statusId,
+      cost,
+      purchaseRemarks,
+      supplierId,
+      supplierLink,
+    })
+    .where(eq(products.sku, originalSku))
     .returning({ sku: products.sku })
     .all()
 
@@ -64,6 +96,18 @@ export async function listProductStatuses(): Promise<ProductStatus[]> {
     })
     .from(productStatuses)
     .orderBy(productStatuses.id)
+
+  return rows
+}
+
+export async function listSuppliers() {
+  const rows = await db
+    .select({
+      id: suppliers.id,
+      name: suppliers.name,
+    })
+    .from(suppliers)
+    .orderBy(suppliers.name)
 
   return rows
 }
