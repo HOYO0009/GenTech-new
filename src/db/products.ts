@@ -1,21 +1,16 @@
-import { join } from 'path'
-import { Database } from 'bun:sqlite'
-import { drizzle } from 'drizzle-orm/bun-sqlite'
 import { eq } from 'drizzle-orm'
-import { products, productStatuses } from './schema'
+import { db } from './connection'
+import { productStatuses, products, suppliers } from './schema'
+import type { Product } from './schema'
 
-const sqlite = new Database(join(process.cwd(), 'gentech.sqlite'))
-export const db = drizzle(sqlite)
-
-export type Product = typeof products.$inferSelect
 export type ProductSummary = {
   sku: Product['sku']
   name: Product['name']
   statusId: number
   statusName: string
   cost: Product['cost']
-  supplier: Product['supplier']
   supplierLink: Product['supplierLink']
+  supplierName: string | null
 }
 
 export type ProductStatus = {
@@ -31,21 +26,22 @@ export async function listProducts(): Promise<ProductSummary[]> {
       statusId: products.statusId,
       statusName: productStatuses.name,
       cost: products.cost,
-      supplier: products.supplier,
       supplierLink: products.supplierLink,
+      supplierName: suppliers.name,
     })
     .from(products)
     .innerJoin(productStatuses, eq(productStatuses.id, products.statusId))
+    .leftJoin(suppliers, eq(suppliers.id, products.supplierId))
     .orderBy(products.sku)
 
-  return rows.map(({ sku, name, statusId, statusName, cost, supplier, supplierLink }) => ({
+  return rows.map(({ sku, name, statusId, statusName, cost, supplierName, supplierLink }) => ({
     sku,
     name,
     statusId,
     statusName: statusName ?? '',
     cost,
-    supplier,
     supplierLink,
+    supplierName,
   }))
 }
 
@@ -73,4 +69,3 @@ export async function listProductStatuses(): Promise<ProductStatus[]> {
 }
 
 export { products }
-export type { NewProduct } from './schema'

@@ -40,6 +40,9 @@ Favor simple, clear solutions over complex or overly clever implementations. Sim
 ### 4. YAGNI (You Ain't Gonna Need It):  
 Don’t implement features or abstractions until they are actually needed. Avoid over-engineering based on guesses about future requirements.
 
+### 5. Schema-Driven Data
+- Keep canonical lists (e.g., product statuses, tiers, or payment types) in the schema, seed them through migrations, and read them through queries so the drift between Drizzle, migrations, and the UI never happens. Let the database own the shape of shared reference data instead of duplicating it in code.
+
 ---
 
 ## ✨ Vibe Coding Principles
