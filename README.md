@@ -113,6 +113,14 @@ Don’t implement features or abstractions until they are actually needed. Avoid
 
 ---
 
+## Architecture Layers
+
+- **Controllers (`src/controllers/*`)** register the Hono routes, parse/validate requests, and delegate to services before handing payloads to the renderers.
+- **UI layer (`src/ui/*`)** builds the shared layout/nav and each page fragment (home, products, vouchers, changes) so controllers can render structured HTML.
+- **Service layer (`src/services/*`)** contains business logic, DTO shaping, validation flows, and change-log coordination; controllers call into it keeping routes thin.
+- **Domain helpers (`src/domain/*`)** package reusable formatting, sanitization, and transformation utilities (e.g., `formatters.ts`) that both services and controllers can rely on.
+- **Persistence (`src/db/*`)** owns the Drizzle schema, connection, and repository functions that the services consume for every read/write.
+
 ## 🏗️ Code Patterns (Do This)
 
 ### ✅ Schema Definition
@@ -400,23 +408,10 @@ bun run typecheck
 
 ---
 
-## 🎨 Vibe Coding Mantras
-
-1. **"If it compiles, it probably works"** - Trust your types
-2. **"Validate early, execute confidently"** - Zod at boundaries
-3. **"Cents, not dollars"** - Integer arithmetic for money
-4. **"Transaction or bust"** - Atomic operations for consistency
-5. **"Schema = Truth"** - Database defines reality
-6. **"Fail fast, fix faster"** - Don't hide errors
-7. **"Type inference > Manual types"** - Let the compiler work
-8. **"Context is cheap, bugs are expensive"** - Explicit over clever
-
----
-
 ## 🚀 Quick Start
 
 ```typescript
-// src/index.ts
+// src/controllers/index.ts
 import { Hono } from 'hono'
 import { db } from './db'
 import { products } from './db/schema'
@@ -434,7 +429,7 @@ export default {
 }
 ```
 
-Run with: `bun run src/index.ts`
+Run with: `bun run src/controllers/index.ts`
 
 ---
 

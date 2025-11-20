@@ -81,6 +81,33 @@ export async function listVoucherTypes(): Promise<VoucherTypeSummary[]> {
   return rows
 }
 
+export async function getVoucherById(id: number): Promise<VoucherSummary | null> {
+  const rows = await db
+    .select({
+      id: vouchers.id,
+      shopId: vouchers.shopId,
+      shopName: shops.name,
+      voucherDiscountTypeId: vouchers.voucherDiscountTypeId,
+      voucherDiscountTypeKey: voucherDiscountTypes.key,
+      voucherDiscountTypeLabel: voucherDiscountTypes.label,
+      voucherTypeId: vouchers.voucherTypeId,
+      voucherTypeName: voucherTypes.name,
+      minSpend: vouchers.minSpend,
+      discount: vouchers.discount,
+      maxDiscount: vouchers.maxDiscount,
+      createdAt: vouchers.createdAt,
+    })
+    .from(vouchers)
+    .leftJoin(shops, eq(shops.id, vouchers.shopId))
+    .leftJoin(voucherDiscountTypes, eq(voucherDiscountTypes.id, vouchers.voucherDiscountTypeId))
+    .leftJoin(voucherTypes, eq(voucherTypes.id, vouchers.voucherTypeId))
+    .where(eq(vouchers.id, id))
+    .limit(1)
+    .all()
+
+  return rows.length ? rows[0] : null
+}
+
 export async function listRecentVouchers(limit = 10): Promise<VoucherSummary[]> {
   const rows = await db
     .select({

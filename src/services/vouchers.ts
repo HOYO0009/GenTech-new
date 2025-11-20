@@ -1,7 +1,16 @@
 import { escapeHtml, formatMoney, formatTimestamp } from '../domain/formatters'
-import { recordChange } from './changeLogs'
+import { recordChange } from './changes'
+import { FieldChangeDetector, FieldCheck } from '../domain/detectors'
+import { normalizeNullableText } from '../domain/normalizers'
+type ChangeAwareUpdater<TExisting, TIncoming, TResult> = {
+  update(args: TIncoming): Promise<TResult>
+  hasChanges(existing: TExisting, incoming: TIncoming): boolean
+}
+import { ensureAmount } from '../domain/validators'
+import { deleteWithConfirmation, DeleteWithConfirmationOptions } from '../domain/delete'
 import {
   deleteVoucherById as deleteVoucherRow,
+  getVoucherById,
   insertVoucher,
   listRecentVouchers,
   listShops,
@@ -56,6 +65,38 @@ export interface VouchersPagePayload {
   voucherTypes: VoucherCategoryOption[]
   vouchers: VoucherListItem[]
 }
+
+type VoucherChangeSnapshot = {
+  shopId: number
+  voucherTypeId: number | null
+  voucherDiscountTypeId: number
+  minSpend: number
+  discount: number
+  maxDiscount: number | null
+}
+
+const voucherChangeFields: FieldCheck<VoucherChangeSnapshot, VoucherChangeSnapshot>[] = [
+  { existingKey: 'shopId', incomingKey: 'shopId' },
+  { existingKey: 'voucherTypeId', incomingKey: 'voucherTypeId' },
+  { existingKey: 'voucherDiscountTypeId', incomingKey: 'voucherDiscountTypeId' },
+  { existingKey: 'minSpend', incomingKey: 'minSpend' },
+  { existingKey: 'discount', incomingKey: 'discount' },
+  { existingKey: 'maxDiscount', incomingKey: 'maxDiscount' },
+]
+
+export const voucherSnapshotFromArgs = (args: VoucherInsertArgs): VoucherChangeSnapshot => ({
+  shopId: args.shopId,
+  voucherTypeId: args.voucherTypeId ?? null,
+  voucherDiscountTypeId: args.voucherDiscountTypeId,
+  minSpend: args.minSpend,
+  discount: args.discount,
+  maxDiscount: args.maxDiscount ?? null,
+})
+
+export const voucherHasChanges = (
+  existing: VoucherChangeSnapshot,
+  incoming: VoucherChangeSnapshot
+) => new FieldChangeDetector(existing, incoming, voucherChangeFields).hasChanges()
 
 export interface VoucherCreateResult {
   status: 200 | 400 | 404 | 500
@@ -147,13 +188,6 @@ const resolveVoucherSelections = async ({
   }
 
   return { shop, voucherDiscountType, voucherType }
-}
-
-const ensureAmount = (value: number, label: string) => {
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error(`${label} must be a non-negative number.`)
-  }
-  return value
 }
 
 export async function getVouchersPagePayload(): Promise<VouchersPagePayload> {
@@ -248,6 +282,32 @@ export async function updateVoucherDetails({
     return { status: 400, message: (error as Error).message }
   }
 
+  const existing = await getVoucherById(id)
+  if (!existing) {
+    return { status: 404, message: 'Voucher not found.' }
+  }
+
+  const normalizedExistingVoucher: VoucherChangeSnapshot = {
+    shopId: existing.shopId,
+    voucherTypeId: existing.voucherTypeId ?? null,
+    voucherDiscountTypeId: existing.voucherDiscountTypeId,
+    minSpend: existing.minSpend,
+    discount: existing.discount,
+    maxDiscount: existing.maxDiscount ?? null,
+  }
+  const normalizedIncomingVoucher: VoucherChangeSnapshot = {
+    shopId: args.shopId,
+    voucherTypeId: args.voucherTypeId ?? null,
+    voucherDiscountTypeId: args.voucherDiscountTypeId,
+    minSpend: args.minSpend,
+    discount: args.discount,
+    maxDiscount: args.maxDiscount ?? null,
+  }
+  const hasChanges = voucherHasChanges(normalizedExistingVoucher, normalizedIncomingVoucher)
+  if (!hasChanges) {
+    return { status: 200, message: 'No changes detected.' }
+  }
+
   const updated = await updateVoucherRow({ id, ...args })
   if (!updated) {
     return { status: 404, message: 'Voucher not found.' }
@@ -269,6 +329,17 @@ export async function updateVoucherDetails({
   }
 
   return { status: 200, message: 'Voucher updated.' }
+}
+
+export const voucherChangeService: ChangeAwareUpdater<
+  VoucherChangeSnapshot,
+  VoucherInsertArgs & { id: number },
+  VoucherCreateResult
+> = {
+  update: updateVoucherDetails,
+  hasChanges(existing, incoming) {
+    return voucherHasChanges(existing, voucherSnapshotFromArgs(incoming))
+  },
 }
 
 export async function deleteVoucherRecord(id: number): Promise<VoucherCreateResult> {
@@ -294,4 +365,36 @@ export async function deleteVoucherRecord(id: number): Promise<VoucherCreateResu
   }
 
   return { status: 200, message: 'Voucher deleted.' }
+}
+
+export async function deleteVoucherRecordWithConfirmation(
+  id: number,
+  confirmation: string
+): Promise<VoucherCreateResult> {
+  if (!Number.isInteger(id) || id <= 0) {
+    return { status: 400, message: 'Invalid voucher selection.' }
+  }
+  const options: DeleteWithConfirmationOptions<VoucherSummary, number> = {
+    identifierLabel: 'Voucher',
+    notFoundMessage: 'Voucher not found.',
+    expectedConfirmation: (existing) =>
+      `${existing.shopName ?? 'Unknown shop'} · ${existing.voucherTypeName ?? 'Voucher'}`,
+    confirmationErrorMessage: 'Confirmation does not match voucher signature.',
+    deleteEntity: async (existing) => deleteVoucherRow(existing.id),
+    loadExisting: () => getVoucherById(id),
+    successMessage: () => 'Voucher deleted.',
+    recordChange: (existing) =>
+      recordChange({
+        tableName: 'vouchers',
+        action: 'DELETE',
+        description: `Voucher #${existing.id} for ${existing.shopName} removed`,
+        payload: { id: existing.id, shopId: existing.shopId },
+        source: 'vouchers/delete',
+      }),
+  }
+  return deleteWithConfirmation({
+    identifier: id,
+    confirmation,
+    options,
+  })
 }

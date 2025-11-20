@@ -1,5 +1,6 @@
 {
   "terminal.integrated.env.windows": {
     "Path": "${env:Path};C:\\Users\\hoyon\\AppData\\Local\\bun\\bun-windows-x64"
-  }
+  },
+  "chatgpt.runCodexInWindowsSubsystemForLinux": true
 }
