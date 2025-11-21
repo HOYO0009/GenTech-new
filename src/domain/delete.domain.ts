@@ -1,5 +1,5 @@
-import { normalizeOptionalString } from './normalizers'
-import { matchesNormalized } from './matches'
+import { normalizeOptionalString } from './normalizers.domain'
+import { matchesNormalized } from './matches.domain'
 
 export type DeleteStatus = 200 | 400 | 404 | 500
 export type DeleteResult = { status: DeleteStatus; message: string }

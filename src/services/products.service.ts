@@ -1,7 +1,11 @@
-import { escapeHtml, formatMoney } from '../domain/formatters'
-import { recordChange } from './changes'
-import { FieldChangeDetector, FieldCheck } from '../domain/detectors'
-import { normalizeNullableText } from '../domain/normalizers'
+import { escapeHtml, formatMoney } from '../domain/formatters.domain'
+import { recordChange } from './changeLogs.service'
+import { FieldChangeDetector, FieldCheck } from '../domain/detectors.domain'
+import { normalizeNullableText } from '../domain/normalizers.domain'
+import { containsTerm, normalizeTerm } from '../domain/search.domain'
+import { sortByString } from '../domain/sort.domain'
+import { filterByIds } from '../domain/filter.domain'
+import { deleteWithConfirmation, DeleteWithConfirmationOptions } from '../domain/delete.domain'
 import {
   getProductByName,
   getProductBySku,
@@ -13,12 +17,12 @@ import {
   ProductStatus,
   ProductSummary,
   updateProduct,
-} from '../db/products'
+} from '../db/products.db'
+
 type ChangeAwareUpdater<TExisting, TIncoming, TResult> = {
   update(args: TIncoming): Promise<TResult>
   hasChanges(existing: TExisting, incoming: TIncoming): boolean
 }
-import { deleteWithConfirmation, DeleteWithConfirmationOptions } from '../domain/delete'
 
 export interface ProductCard {
   sku: string
@@ -48,6 +52,15 @@ export interface ProductPagePayload {
   products: ProductCard[]
   statuses: ProductStatusOption[]
   suppliers: SupplierOption[]
+}
+
+export type ProductSortOption = 'name-asc' | 'name-desc' | 'sku-asc' | 'sku-desc'
+
+export interface ProductSearchSortOptions {
+  search?: string
+  sort?: ProductSortOption
+  supplierIds?: number[]
+  statusIds?: number[]
 }
 
 export interface ProductUpdateArgs {
@@ -147,7 +160,34 @@ const supplierToOption = (supplier: { id: number; name: string }): SupplierOptio
   name: escapeHtml(supplier.name),
 })
 
-export async function getProductPagePayload(): Promise<ProductPagePayload> {
+export const applyProductSearchSort = (
+  products: ProductCard[],
+  options?: ProductSearchSortOptions
+): ProductCard[] => {
+  const term = normalizeTerm(options?.search)
+  const filteredForSearch = term
+    ? products.filter(
+        (product) =>
+          containsTerm(product.name, term) ||
+          containsTerm(product.sku, term) ||
+          containsTerm(product.supplierName ?? '', term)
+      )
+    : products
+  const filteredBySupplier = filterByIds(filteredForSearch, options?.supplierIds, (product) => product.supplierId)
+  const filtered = filterByIds(filteredBySupplier, options?.statusIds, (product) => product.statusId)
+  const sortOption: ProductSortOption =
+    options?.sort && ['name-asc', 'name-desc', 'sku-asc', 'sku-desc'].includes(options.sort)
+      ? options.sort
+      : 'name-asc'
+  if (sortOption.startsWith('sku-')) {
+    return sortByString(filtered, (product) => product.sku, sortOption.endsWith('desc') ? 'desc' : 'asc')
+  }
+  return sortByString(filtered, (product) => product.name, sortOption.endsWith('desc') ? 'desc' : 'asc')
+}
+
+export async function getProductPagePayload(
+  options?: ProductSearchSortOptions
+): Promise<ProductPagePayload> {
   const [products, statuses, suppliers] = await Promise.all([
     listProducts(),
     listProductStatuses(),
@@ -155,7 +195,7 @@ export async function getProductPagePayload(): Promise<ProductPagePayload> {
   ])
 
   return {
-    products: products.map(productToCard),
+    products: applyProductSearchSort(products.map(productToCard), options),
     statuses: statuses.map(statusToOption),
     suppliers: suppliers.map(supplierToOption),
   }

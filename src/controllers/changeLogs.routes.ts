@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
-import { listChangeEvents } from '../services/changes'
-import { changesPage } from '../ui/pages/changes'
+import { listChangeEvents } from '../services/changeLogs.service'
+import { changesPage } from '../ui/pages/changes.page'
 
 export const registerChangeLogRoutes = (app: Hono) => {
   app.get('/changes', async (c) => {

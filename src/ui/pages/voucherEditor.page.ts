@@ -1,6 +1,6 @@
-import { layout } from '../layout'
-import { editorBaseScript, renderEditorShell } from '../templates/editor'
-import { VouchersPagePayload } from '../../services/vouchers'
+import { layout } from '../layout.ui'
+import { editorBaseScript, renderEditorShell } from '../templates/editor.template'
+import { VouchersPagePayload } from '../../services/vouchers.service'
 
 const safeJson = (data: unknown) =>
   JSON.stringify(data).replace(/<\/script>/g, '<\\/script>')

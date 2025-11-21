@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm'
-import { db } from './connection'
-import { productStatuses, products, suppliers } from './schema'
-import type { Product } from './schema'
+import { db } from './connection.db'
+import { productStatuses, products, suppliers } from './schema.db'
+import type { Product } from './schema.db'
 
 export type ProductSummary = {
   sku: Product['sku']

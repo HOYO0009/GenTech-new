@@ -1,4 +1,4 @@
-export type SiteSection = 'home' | 'products' | 'vouchers' | 'changes'
+export type SiteSection = 'home' | 'products' | 'vouchers' | 'changes' | 'settings'
 
 const navBar = (active: SiteSection) => `
     <nav class="flex items-center gap-6 uppercase text-xs tracking-[0.4em]">
@@ -6,6 +6,7 @@ const navBar = (active: SiteSection) => `
       <a class="hover:text-white transition ${active === 'products' ? 'text-white' : 'text-red-400'}" href="/products">Products</a>
       <a class="hover:text-white transition ${active === 'vouchers' ? 'text-white' : 'text-red-400'}" href="/vouchers">Vouchers</a>
       <a class="hover:text-white transition ${active === 'changes' ? 'text-white' : 'text-red-400'}" href="/changes">Changes</a>
+      <a class="hover:text-white transition ${active === 'settings' ? 'text-white' : 'text-red-400'}" href="/settings">Settings</a>
     </nav>
 `
 
@@ -73,15 +74,27 @@ const visualFoundation = `
       outline: none;
       cursor: pointer;
     }
-    button.primary-btn {
+    .primary-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+      font-size: 0.7rem;
       background-color: #b41f26;
       color: #fff;
       border-radius: 999px;
       padding: 0.75rem 1.5rem;
       border: 1px solid transparent;
       transition: background-color 0.2s ease, border-color 0.2s ease;
+      text-decoration: none;
+      cursor: pointer;
     }
-    button.primary-btn:hover {
+    button.primary-btn {
+      border: none;
+    }
+    .primary-btn:hover {
       background-color: #ff2b2b;
     }
     button.secondary-btn {
@@ -130,7 +143,7 @@ export const layout = (
     </header>
     ${heroContent ? `<section class="px-6 py-10 max-w-4xl mx-auto space-y-6">${heroContent}</section>` : ''}
     <main class="flex-1 px-6 pb-10">
-      <div class="max-w-4xl mx-auto space-y-8">
+      <div class="max-w-4xl mx-auto space-y-4">
         ${mainContent}
       </div>
     </main>

@@ -1,6 +1,6 @@
 import { eq, desc } from 'drizzle-orm'
-import { db } from './connection'
-import { shops, voucherTypes, voucherDiscountTypes, vouchers } from './schema'
+import { db } from './connection.db'
+import { shops, voucherTypes, voucherDiscountTypes, vouchers } from './schema.db'
 
 export type ShopSummary = {
   id: number

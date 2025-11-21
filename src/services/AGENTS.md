@@ -4,20 +4,22 @@
 
 ---
 
-## Files in This Directory
+## Files in This Directory (suffix naming)
 
 ```
 services/
-├── products.ts     # Product business logic (create, update, list)
-├── vouchers.ts     # Voucher business logic (create, update, delete, list)
-└── changeLogs.ts   # Changelog recording and retrieval
+- products.service.ts     # Product business logic (create, update, list)
+- vouchers.service.ts     # Voucher business logic (create, update, delete, list)
+- changeLogs.service.ts   # Changelog recording and retrieval
 ```
+
+**Naming convention:** `<feature>.service.ts` for business logic per feature.
 
 ---
 
 ## Responsibilities
 
-### ✅ This layer handles:
+### Do This Layer Handles:
 - Business logic and domain rules
 - Input validation with Zod
 - Coordinating database operations
@@ -26,10 +28,10 @@ services/
 - Using domain utilities (formatters)
 - Recording audit logs
 
-### ❌ This layer does NOT handle:
-- HTTP requests/responses (that's in `index.ts`)
+### Avoid This Layer Does NOT Handle:
+- HTTP requests/responses (that's in `index.routes.ts`)
 - Direct database access (use `db/` layer functions)
-- HTML rendering (that's in `index.ts`)
+- HTML rendering (that's in `index.routes.ts`)
 - Raw formatting (use `domain/` utilities)
 
 ---
@@ -40,12 +42,11 @@ Each service file handles one feature area:
 
 ### Structure
 ```typescript
-// services/feature.ts
+// services/feature.service.ts
 
 // 1. Imports
-import { db } from '../db/connection'
-import { formatMoney } from '../domain/formatters'
-import { getFeatures, insertFeature } from '../db/feature'
+import { formatMoney } from '../domain/formatters.domain'
+import { getFeatures, insertFeature } from '../db/feature.db'
 
 // 2. Type definitions (payload types for views)
 export interface FeatureCard {
@@ -72,7 +73,6 @@ export async function getFeaturePagePayload(): Promise<FeaturePagePayload> {
 }
 
 export async function createFeature(data: NewFeatureInput) {
-  // Validate, transform, insert
   const result = await insertFeature(data)
   return result
 }
@@ -86,26 +86,23 @@ export async function createFeature(data: NewFeatureInput) {
 **Purpose:** Prepare data for route handlers/views
 
 ```typescript
-// Define payload interface
+// services/products.service.ts
 export interface ProductPagePayload {
   products: ProductCard[]
   statuses: ProductStatusOption[]
   suppliers: SupplierOption[]
 }
 
-// Fetch data and transform
 export async function getProductPagePayload(): Promise<ProductPagePayload> {
   const rawProducts = await listProducts()
   const statuses = await listProductStatuses()
   const suppliers = await listSuppliers()
 
-  // Transform for view
   const products = rawProducts.map(p => ({
     sku: p.sku,
     name: p.name,
     costDisplay: formatMoney(p.cost || 0),
     statusName: p.statusName,
-    // ... more fields
   }))
 
   return { products, statuses, suppliers }
@@ -117,21 +114,15 @@ export async function getProductPagePayload(): Promise<ProductPagePayload> {
 
 ```typescript
 export async function updateProductDetails(args: ProductUpdateArgs) {
-  // 1. Validate inputs (Zod if needed)
-
-  // 2. Prepare data
   const updateData = {
     sku: args.sku,
     name: args.name,
     statusId: args.requestedStatusId,
     cost: args.costCents,
-    // ... more fields
   }
 
-  // 3. Update database
   await updateProduct(args.originalSku, updateData)
 
-  // 4. Record audit log
   await recordChange({
     action: 'update',
     tableName: 'products',
@@ -147,12 +138,10 @@ export async function updateProductDetails(args: ProductUpdateArgs) {
 
 ```typescript
 export async function createVoucher(data: VoucherInput): Promise<VoucherCreateResult> {
-  // 1. Validate (if needed)
   if (data.minSpend < 0) {
     throw new Error('Min spend cannot be negative')
   }
 
-  // 2. Insert
   const voucher = await insertVoucher({
     shopId: data.shopId,
     minSpend: data.minSpend,
@@ -161,7 +150,6 @@ export async function createVoucher(data: VoucherInput): Promise<VoucherCreateRe
     voucherDiscountTypeId: data.voucherDiscountTypeId
   })
 
-  // 3. Record log
   await recordChange({
     action: 'create',
     tableName: 'vouchers',
@@ -179,10 +167,8 @@ export async function createVoucher(data: VoucherInput): Promise<VoucherCreateRe
 
 ```typescript
 export async function deleteVoucherRecord(voucherId: number) {
-  // 1. Delete from database
   await deleteVoucher(voucherId)
 
-  // 2. Record deletion
   await recordChange({
     action: 'delete',
     tableName: 'vouchers',
@@ -199,12 +185,10 @@ export async function deleteVoucherRecord(voucherId: number) {
 
 ### Money Formatting
 ```typescript
-import { formatMoney } from '../domain/formatters'
+import { formatMoney } from '../domain/formatters.domain'
 
-// Database stores cents (integer)
 const product = await getProduct(id) // { cost: 1999 }
 
-// Service transforms for display
 const card = {
   costDisplay: formatMoney(product.cost) // "$19.99"
 }
@@ -212,7 +196,6 @@ const card = {
 
 ### Null Handling
 ```typescript
-// Handle optional values gracefully
 const card = {
   costDisplay: product.cost ? formatMoney(product.cost) : 'N/A',
   supplierName: product.supplierName || 'Unknown',
@@ -222,11 +205,8 @@ const card = {
 
 ### Flattening Joins
 ```typescript
-// Database returns nested structure
 const rawProducts = await getProductsWithStatus()
-// [{ id: 1, name: 'Product', status: { id: 1, name: 'active' } }]
 
-// Service flattens for view
 const products = rawProducts.map(p => ({
   id: p.id,
   name: p.name,
@@ -243,7 +223,6 @@ const products = rawProducts.map(p => ({
 ```typescript
 import { z } from 'zod'
 
-// Define schema
 const CreateVoucherSchema = z.object({
   shopId: z.number().positive(),
   minSpend: z.number().nonnegative(),
@@ -251,12 +230,8 @@ const CreateVoucherSchema = z.object({
   voucherTypeId: z.number().positive()
 })
 
-// Validate in service
 export async function createVoucher(data: unknown) {
-  // Parse and validate
   const validated = CreateVoucherSchema.parse(data)
-
-  // Now use validated data
   return await insertVoucher(validated)
 }
 ```
@@ -264,7 +239,6 @@ export async function createVoucher(data: unknown) {
 ### Manual Validation
 ```typescript
 export async function updateProduct(data: ProductUpdateArgs) {
-  // Business rules
   if (data.costCents && data.costCents < 0) {
     throw new Error('Cost cannot be negative')
   }
@@ -273,7 +247,6 @@ export async function updateProduct(data: ProductUpdateArgs) {
     throw new Error('SKU is required')
   }
 
-  // Proceed with update
   await updateProductInDb(data)
 }
 ```
@@ -282,17 +255,16 @@ export async function updateProduct(data: ProductUpdateArgs) {
 
 ## Audit Logging
 
-Use `recordChange()` from `changeLogs.ts`:
+Use `recordChange()` from `changeLogs.service.ts`:
 
 ```typescript
-import { recordChange } from './changeLogs'
+import { recordChange } from './changeLogs.service'
 
-// After create/update/delete
 await recordChange({
   action: 'create' | 'update' | 'delete',
   tableName: 'table_name',
   description: 'Human-readable description',
-  payload: JSON.stringify(data), // Optional
+  payload: JSON.stringify(data),
   source: 'service-name'
 })
 ```
@@ -301,7 +273,7 @@ await recordChange({
 
 ## Service Layer Files
 
-### `products.ts`
+### `products.service.ts`
 **Handles:** Product catalog management
 
 **Key functions:**
@@ -314,7 +286,7 @@ await recordChange({
 - `ProductStatusOption` - Status dropdown options
 - `SupplierOption` - Supplier dropdown options
 
-### `vouchers.ts`
+### `vouchers.service.ts`
 **Handles:** Voucher/discount management
 
 **Key functions:**
@@ -329,7 +301,7 @@ await recordChange({
 - `VoucherCreateResult` - Result of voucher creation
 - `discountLabelByType()` - Utility to format discount display
 
-### `changeLogs.ts`
+### `changeLogs.service.ts`
 **Handles:** Audit trail recording and retrieval
 
 **Key functions:**
@@ -363,7 +335,7 @@ await recordChange({
 
 ### To handle money values:
 1. Receive cents (integer) from database
-2. Use `formatMoney()` from `domain/formatters` for display
+2. Use `formatMoney()` from `domain/formatters.domain.ts` for display
 3. Use `toCents()` when converting user input (if needed)
 4. Always return cents to database layer
 
@@ -377,7 +349,7 @@ await recordChange({
 
 ## Rules
 
-### ✅ Do This
+### Do This
 - Define payload interfaces for route handlers
 - Validate inputs (Zod or manual)
 - Call database layer for data access
@@ -387,9 +359,9 @@ await recordChange({
 - Export types and functions
 - Handle null/undefined gracefully
 
-### ❌ Avoid This
+### Avoid This
 - Don't access database directly (use `db/` functions)
-- Don't put HTTP logic here (use `index.ts`)
+- Don't put HTTP logic here (use `index.routes.ts`)
 - Don't format money manually (use `formatMoney()`)
 - Don't skip validation on external inputs
 - Don't mix multiple responsibilities in one function

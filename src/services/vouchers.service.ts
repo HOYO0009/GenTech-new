@@ -1,13 +1,12 @@
-import { escapeHtml, formatMoney, formatTimestamp } from '../domain/formatters'
-import { recordChange } from './changes'
-import { FieldChangeDetector, FieldCheck } from '../domain/detectors'
-import { normalizeNullableText } from '../domain/normalizers'
-type ChangeAwareUpdater<TExisting, TIncoming, TResult> = {
-  update(args: TIncoming): Promise<TResult>
-  hasChanges(existing: TExisting, incoming: TIncoming): boolean
-}
-import { ensureAmount } from '../domain/validators'
-import { deleteWithConfirmation, DeleteWithConfirmationOptions } from '../domain/delete'
+import { escapeHtml, formatMoney, formatTimestamp } from '../domain/formatters.domain'
+import { recordChange } from './changeLogs.service'
+import { FieldChangeDetector, FieldCheck } from '../domain/detectors.domain'
+import { normalizeNullableText } from '../domain/normalizers.domain'
+import { ensureAmount } from '../domain/validators.domain'
+import { deleteWithConfirmation, DeleteWithConfirmationOptions } from '../domain/delete.domain'
+import { containsTerm, normalizeTerm } from '../domain/search.domain'
+import { sortByString } from '../domain/sort.domain'
+import { filterByIds } from '../domain/filter.domain'
 import {
   deleteVoucherById as deleteVoucherRow,
   getVoucherById,
@@ -22,7 +21,12 @@ import {
   VoucherSummary,
   VoucherDiscountTypeSummary,
   VoucherTypeSummary,
-} from '../db/vouchers'
+} from '../db/vouchers.db'
+
+type ChangeAwareUpdater<TExisting, TIncoming, TResult> = {
+  update(args: TIncoming): Promise<TResult>
+  hasChanges(existing: TExisting, incoming: TIncoming): boolean
+}
 
 export interface ShopOption {
   id: number
@@ -57,6 +61,7 @@ export interface VoucherListItem {
   maxDiscount: number | null
   maxDiscountDisplay: string
   createdAt: string
+  createdAtRaw: Date
 }
 
 export interface VouchersPagePayload {
@@ -64,6 +69,14 @@ export interface VouchersPagePayload {
   voucherDiscountTypes: VoucherDiscountTypeOption[]
   voucherTypes: VoucherCategoryOption[]
   vouchers: VoucherListItem[]
+}
+
+export type VoucherSortOption = 'date-desc' | 'date-asc' | 'shop-asc' | 'shop-desc'
+
+export interface VoucherSearchSortOptions {
+  search?: string
+  sort?: VoucherSortOption
+  shopIds?: number[]
 }
 
 type VoucherChangeSnapshot = {
@@ -154,6 +167,7 @@ const sanitizeVoucherSummary = (entry: VoucherSummary): VoucherListItem => {
     maxDiscount: entry.maxDiscount,
     maxDiscountDisplay,
     createdAt: formatTimestamp(entry.createdAt),
+    createdAtRaw: new Date(entry.createdAt),
   }
 }
 
@@ -190,7 +204,9 @@ const resolveVoucherSelections = async ({
   return { shop, voucherDiscountType, voucherType }
 }
 
-export async function getVouchersPagePayload(): Promise<VouchersPagePayload> {
+export async function getVouchersPagePayload(
+  options?: VoucherSearchSortOptions
+): Promise<VouchersPagePayload> {
   const [shops, discountTypes, voucherTypes, vouchers] = await Promise.all([
     listShops(),
     listVoucherDiscountTypes(),
@@ -198,11 +214,36 @@ export async function getVouchersPagePayload(): Promise<VouchersPagePayload> {
     listRecentVouchers(),
   ])
 
+  const mapped = vouchers.map(sanitizeVoucherSummary)
+  const term = normalizeTerm(options?.search)
+  const filteredBySearch = term
+    ? mapped.filter(
+        (voucher) =>
+          containsTerm(voucher.shopName, term) ||
+          containsTerm(voucher.voucherCategoryLabel, term) ||
+          containsTerm(voucher.voucherDiscountTypeLabel, term)
+      )
+    : mapped
+  const filtered = filterByIds(filteredBySearch, options?.shopIds, (voucher) => voucher.shopId)
+
+  const sortOption: VoucherSortOption =
+    options?.sort && ['date-desc', 'date-asc', 'shop-asc', 'shop-desc'].includes(options.sort)
+      ? options.sort
+      : 'date-desc'
+
+  const sorted =
+    sortOption === 'shop-asc' || sortOption === 'shop-desc'
+      ? sortByString(filtered, (voucher) => voucher.shopName, sortOption.endsWith('desc') ? 'desc' : 'asc')
+      : [...filtered].sort((a, b) => {
+          const dir = sortOption === 'date-asc' ? 1 : -1
+          return (voucher.createdAtRaw.getTime() - b.createdAtRaw.getTime()) * dir
+        })
+
   return {
     shops: shops.map(sanitizeShop),
     voucherDiscountTypes: discountTypes.map(sanitizeVoucherDiscountType),
     voucherTypes: voucherTypes.map(sanitizeVoucherCategory),
-    vouchers: vouchers.map(sanitizeVoucherSummary),
+    vouchers: sorted,
   }
 }
 

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "src/controllers/index.ts",
+  "main": "src/index.routes.ts",
   "scripts": {
-    "dev": "bun run src/controllers/index.ts"
+    "dev": "bun --watch run src/index.routes.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.7",

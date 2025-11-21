@@ -4,29 +4,31 @@
 
 ---
 
-## Files in This Directory
+## Files in This Directory (suffix naming)
 
 ```
 domain/
-└── formatters.ts   # Money, timestamp, HTML, and JSON formatting utilities
+- formatters.domain.ts   # Money, timestamp, HTML, and JSON formatting utilities
 ```
+
+**Naming convention:** `<feature>.domain.ts` for shared utilities.
 
 ---
 
 ## Responsibilities
 
-### ✅ This layer handles:
+### Do This Layer Handles:
 - Pure utility functions (no side effects)
-- Money formatting (cents → display)
+- Money formatting (cents to display)
 - Date/time formatting
 - HTML escaping for XSS prevention
 - JSON pretty-printing
 - Shared domain logic
 
-### ❌ This layer does NOT handle:
+### Avoid This Layer Does NOT Handle:
 - Database access (that's in `db/`)
 - Business logic (that's in `services/`)
-- HTTP requests/responses (that's in `index.ts`)
+- HTTP requests/responses (that's in `index.routes.ts`)
 - External API calls
 - State management
 
@@ -41,20 +43,20 @@ domain/
 
 **Usage:**
 ```typescript
-import { formatMoney } from './domain/formatters'
+import { formatMoney } from './formatters.domain'
 
 formatMoney(1999)    // "$19.99"
 formatMoney(5000)    // "$50.00"
 formatMoney(0)       // "$0.00"
-formatMoney(null)    // "—"
-formatMoney(NaN)     // "—"
+formatMoney(null)    // "N/A"
+formatMoney(NaN)     // "N/A"
 ```
 
 **Key behaviors:**
 - Converts cents to dollars (divides by 100)
 - Always shows 2 decimal places
-- Handles null gracefully (returns "—")
-- Handles NaN gracefully (returns "—")
+- Handles null gracefully (returns "N/A")
+- Handles NaN gracefully (returns "N/A")
 
 **When to use:**
 - Displaying prices in UI
@@ -76,7 +78,7 @@ formatMoney(NaN)     // "—"
 
 **Usage:**
 ```typescript
-import { formatTimestamp } from './domain/formatters'
+import { formatTimestamp } from './formatters.domain'
 
 const date = new Date('2025-01-15T14:30:00')
 formatTimestamp(date)           // "Jan 15, 2025, 2:30 PM"
@@ -90,12 +92,6 @@ formatTimestamp(null)           // "Unknown time"
 - Uses en-US locale
 - Returns "Unknown time" for null/undefined
 
-**When to use:**
-- Displaying `createdAt` in UI
-- Showing `updatedAt` timestamps
-- Formatting audit log times
-- Any user-facing date/time
-
 ---
 
 ### HTML Escaping
@@ -105,7 +101,7 @@ formatTimestamp(null)           // "Unknown time"
 
 **Usage:**
 ```typescript
-import { escapeHtml } from './domain/formatters'
+import { escapeHtml } from './formatters.domain'
 
 escapeHtml('<script>alert("xss")</script>')
 // "&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;"
@@ -113,22 +109,16 @@ escapeHtml('<script>alert("xss")</script>')
 escapeHtml('User & Co.')
 // "User &amp; Co."
 
-escapeHtml("It's a test")
+escapeHtml("It\'s a test")
 // "It&#39;s a test"
 ```
 
 **Escapes:**
-- `&` → `&amp;`
-- `<` → `&lt;`
-- `>` → `&gt;`
-- `"` → `&quot;`
-- `'` → `&#39;`
-
-**When to use:**
-- Before inserting user input into HTML
-- Displaying product names with special chars
-- Showing remarks or descriptions
-- Any untrusted content in HTML templates
+- `&` -> `&amp;`
+- `<` -> `&lt;`
+- `>` -> `&gt;`
+- `"` -> `&quot;`
+- `'` -> `&#39;`
 
 **Critical for security:** Always escape user input before rendering in HTML!
 
@@ -141,7 +131,7 @@ escapeHtml("It's a test")
 
 **Usage:**
 ```typescript
-import { prettyPayload } from './domain/formatters'
+import { prettyPayload } from './formatters.domain'
 
 const json = '{"name":"Product","price":1999}'
 prettyPayload(json)
@@ -160,12 +150,6 @@ prettyPayload(null)            // null
 - Returns original string if parse fails
 - Returns null for null input
 
-**When to use:**
-- Displaying audit log payloads
-- Debugging JSON data
-- Showing formatted API responses
-- Developer tools and admin panels
-
 ---
 
 ## Adding New Utilities
@@ -173,7 +157,7 @@ prettyPayload(null)            // null
 ### Guidelines for Domain Functions
 
 **Do:**
-- Keep functions pure (same input → same output)
+- Keep functions pure (same input -> same output)
 - No side effects (no database, no HTTP, no global state)
 - Handle null/undefined gracefully
 - Return consistent types
@@ -182,7 +166,7 @@ prettyPayload(null)            // null
 
 **Example:**
 ```typescript
-// formatters.ts
+// formatters.domain.ts
 
 export function toCents(dollars: number): number {
   return Math.round(dollars * 100)
@@ -205,16 +189,16 @@ export function truncate(text: string, maxLength: number): string {
 
 ### In Service Layer
 ```typescript
-// services/products.ts
-import { formatMoney, escapeHtml } from '../domain/formatters'
+// services/products.service.ts
+import { formatMoney, escapeHtml, formatTimestamp } from '../domain/formatters.domain'
 
 export async function getProductPagePayload() {
   const products = await listProducts()
 
   return products.map(p => ({
     sku: p.sku,
-    name: escapeHtml(p.name),              // Escape for XSS
-    costDisplay: formatMoney(p.cost),      // Format for display
+    name: escapeHtml(p.name),
+    costDisplay: formatMoney(p.cost),
     updatedAt: formatTimestamp(p.updatedAt)
   }))
 }
@@ -222,8 +206,8 @@ export async function getProductPagePayload() {
 
 ### In Route Handlers
 ```typescript
-// index.ts
-import { formatMoney, escapeHtml } from './domain/formatters'
+// index.routes.ts
+import { formatMoney, escapeHtml } from './domain/formatters.domain'
 
 app.get('/products/:id', async (c) => {
   const product = await getProduct(id)
@@ -253,7 +237,7 @@ const productCard = (p: ProductCard) => `
 ### Example Tests
 ```typescript
 import { describe, it, expect } from 'bun:test'
-import { formatMoney, escapeHtml, formatTimestamp } from './formatters'
+import { formatMoney, escapeHtml, formatTimestamp } from './formatters.domain'
 
 describe('formatMoney', () => {
   it('formats cents to dollars', () => {
@@ -261,7 +245,7 @@ describe('formatMoney', () => {
   })
 
   it('handles null', () => {
-    expect(formatMoney(null)).toBe('—')
+    expect(formatMoney(null)).toBe('N/A')
   })
 })
 
@@ -279,7 +263,7 @@ describe('escapeHtml', () => {
 If you need to convert user input to cents, add this:
 
 ```typescript
-// formatters.ts
+// formatters.domain.ts
 
 /**
  * Convert dollars (float) to cents (integer)
@@ -302,12 +286,10 @@ export function toDollars(cents: number): number {
 
 **Usage:**
 ```typescript
-// User enters "$19.99" in form
 const userInput = 19.99
 const cents = toCents(userInput)  // 1999
 await saveProduct({ price: cents })
 
-// Display in UI
 const product = await getProduct(id)  // { price: 1999 }
 const display = formatMoney(product.price)  // "$19.99"
 ```
@@ -317,15 +299,15 @@ const display = formatMoney(product.price)  // "$19.99"
 ## Working in This Directory
 
 ### To add a new utility:
-1. Open `formatters.ts`
+1. Open `formatters.domain.ts`
 2. Add pure function with TypeScript types
 3. Handle null/undefined gracefully
 4. Export function
-5. Write tests in `formatters.test.ts`
+5. Write tests in `formatters.domain.test.ts`
 6. Use in service layer or routes
 
 ### To modify existing utility:
-1. Update function in `formatters.ts`
+1. Update function in `formatters.domain.ts`
 2. Check all usages (search codebase)
 3. Update tests if behavior changes
 4. Verify all callers still work
@@ -334,7 +316,7 @@ const display = formatMoney(product.price)  // "$19.99"
 
 ## Rules
 
-### ✅ Do This
+### Do This
 - Keep functions pure (no side effects)
 - Handle null/undefined gracefully
 - Add TypeScript type annotations
@@ -343,7 +325,7 @@ const display = formatMoney(product.price)  // "$19.99"
 - Use descriptive function names
 - Add JSDoc comments for complex functions
 
-### ❌ Avoid This
+### Avoid This
 - Don't access database from utilities
 - Don't make HTTP requests from utilities
 - Don't use global state

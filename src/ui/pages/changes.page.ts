@@ -1,5 +1,5 @@
-import { layout } from '../layout'
-import { ChangeLogEvent } from '../../services/changes'
+import { layout } from '../layout.ui'
+import { ChangeLogEvent } from '../../services/changeLogs.service'
 
 export const changesPage = (changes: ChangeLogEvent[]) => {
   const changeItems = changes.length

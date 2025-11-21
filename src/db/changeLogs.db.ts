@@ -1,6 +1,6 @@
 import { sql, desc } from 'drizzle-orm'
-import { db } from './connection'
-import { changeLogs } from './schema'
+import { db } from './connection.db'
+import { changeLogs } from './schema.db'
 
 const changeLogSetup = (async () => {
   await db.run(

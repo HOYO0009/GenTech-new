@@ -1,4 +1,4 @@
-import { caseInsensitiveComparator } from './matches'
+import { caseInsensitiveComparator } from './matches.domain'
 
 export type FieldComparator = (existingValue: unknown, incomingValue: unknown) => boolean
 

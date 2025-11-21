@@ -14,45 +14,21 @@
 
 ---
 
-## Development Commands
-
-```bash
-# Install dependencies
-bun install
-
-# Run development server (default port: 3000)
-bun run dev
-
-# Type checking (TypeScript compiler)
-bun run typecheck
-
-# Generate database migrations
-bun run db:generate
-
-# Apply database migrations
-bun run db:migrate
-
-# Open Drizzle Studio (visual DB inspector)
-bun run db:studio
-
-# Run tests
-bun test
-```
-
----
-
-## Project Structure
+## Project Structure (suffix naming)
 
 ```
 GenTech-new/
-├── src/
-│   ├── db/           # Database layer (schema, queries, connection)
-│   ├── services/     # Business logic (product, voucher, changelog services)
-│   ├── domain/       # Domain utilities (formatters, helpers)
-│   └── index.ts      # Main application entry (routes, handlers)
-├── scripts/          # Migration and maintenance scripts
-└── gentech.sqlite    # SQLite database file
+- src/
+  - db/                # Database layer (schema, queries, connection)
+  - services/          # Business logic (product, voucher, changelog services)
+  - domain/            # Domain utilities (formatters, helpers)
+  - index.routes.ts    # Main application entry (routes, handlers)
+  - env.d.ts           # TypeScript environment declarations
+- scripts/              # Migration and maintenance scripts
+- gentech.sqlite        # SQLite database file
 ```
+
+**Naming convention:** `<feature>.<role>.ts` (e.g., `products.service.ts`, `products.page.ts`, `schema.db.ts`, `formatters.domain.ts`).
 
 ---
 
@@ -67,7 +43,7 @@ GenTech-new/
 ### Money Handling
 - **ALWAYS** store currency as integers (cents, not dollars)
 - Never use floats for money calculations
-- Use `toCents()` and `formatMoney()` helpers from `domain/formatters.ts`
+- Use `toCents()` and `formatMoney()` helpers from `domain/formatters.domain.ts`
 
 ### Data Validation
 - Validate at API boundaries using Zod schemas
@@ -105,7 +81,7 @@ GenTech-new/
 - Pure functions with no side effects
 - Money formatting, date handling, etc.
 
-### Routes (`src/index.ts`)
+### Routes (`src/index.routes.ts`)
 - HTTP handlers and routing (Hono)
 - Request/response transformations
 - Delegates to service layer
@@ -116,16 +92,16 @@ GenTech-new/
 ## Common Tasks
 
 ### Adding a New Feature
-1. Define schema in `src/db/schema.ts`
+1. Define schema in `src/db/schema.db.ts`
 2. Generate migration: `bun run db:generate`
 3. Apply migration: `bun run db:migrate`
-4. Create service in `src/services/<feature>.ts`
-5. Add routes in `src/index.ts`
+4. Create service in `src/services/<feature>.service.ts`
+5. Add routes in `src/index.routes.ts`
 6. Test with `bun test`
 
 ### Working with Money
 ```typescript
-import { toCents, formatMoney } from './domain/formatters'
+import { toCents, formatMoney } from './domain/formatters.domain.ts'
 
 // Store as cents
 const priceInCents = toCents(19.99) // 1999
@@ -137,8 +113,8 @@ const display = formatMoney(priceInCents) // "$19.99"
 ### Database Queries
 ```typescript
 // Use Drizzle query builder (type-safe)
-import { db } from './db/connection'
-import { products } from './db/schema'
+import { db } from './db/connection.db.ts'
+import { products } from './db/schema.db.ts'
 import { eq, gt } from 'drizzle-orm'
 
 const activeProducts = await db
@@ -149,7 +125,7 @@ const activeProducts = await db
 
 ### Transactions
 ```typescript
-import { db } from './db/connection'
+import { db } from './db/connection.db.ts'
 
 await db.transaction(async (tx) => {
   // Multiple operations - all succeed or all fail
@@ -163,7 +139,7 @@ await db.transaction(async (tx) => {
 ## Style & UI Guidelines
 
 ### Color Palette
-- **Primary accent:** `#b41f26` (default) → `#ff2b2b` (hover)
+- **Primary accent:** `#b41f26` (default) to `#ff2b2b` (hover)
 - **Background:** `#010101` (page), `rgba(15,15,15,0.85)` (panels)
 - **Text:** `#f7f4f0` (cream white)
 - **Borders:** `rgba(255,255,255,0.1)` (light) / `rgba(255,255,255,0.3)` (strong)
@@ -183,7 +159,7 @@ await db.transaction(async (tx) => {
 
 ## Code Quality
 
-### Do This ✅
+### Do This
 - Validate inputs with Zod at API boundaries
 - Use TypeScript strict mode without exceptions
 - Store money as integer cents
@@ -192,7 +168,7 @@ await db.transaction(async (tx) => {
 - Use Drizzle query builder for type safety
 - Let schema define types (no manual interfaces)
 
-### Avoid This ❌
+### Avoid This
 - Never use `any` or `@ts-ignore`
 - Never use floats for money calculations
 - Never trust external input without validation
@@ -210,7 +186,7 @@ await db.transaction(async (tx) => {
 bun test
 
 # Run specific test file
-bun test src/services/products.test.ts
+bun test src/services/products.service.test.ts
 
 # Type check only
 bun run typecheck

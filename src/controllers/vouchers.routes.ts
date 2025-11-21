@@ -5,9 +5,10 @@ import {
   updateVoucherDetails,
   deleteVoucherRecordWithConfirmation,
   VoucherCreateResult,
-} from '../services/vouchers'
-import { vouchersPage, renderVoucherHistorySection } from '../ui/pages/vouchers'
-import { voucherEditorPage } from '../ui/pages/voucherEditor'
+  type VoucherSortOption,
+} from '../services/vouchers.service'
+import { vouchersPage, renderVoucherHistorySection } from '../ui/pages/vouchers.page'
+import { voucherEditorPage } from '../ui/pages/voucherEditor.page'
 
 type ParsedVoucherFormData = {
   shopId: number
@@ -100,8 +101,14 @@ const respondWithVoucherFeedback = async (
 
 export const registerVoucherRoutes = (app: Hono) => {
   app.get('/vouchers', async (c) => {
-    const payload = await getVouchersPagePayload()
-    return c.html(vouchersPage(payload))
+    const search = c.req.query('search') ?? ''
+    const sortQuery = c.req.query('sort') ?? ''
+    const sort: VoucherSortOption = ['date-desc', 'date-asc', 'shop-asc', 'shop-desc'].includes(sortQuery)
+      ? (sortQuery as VoucherSortOption)
+      : 'date-desc'
+    const shopFilters = (c.req.queries('shopId') ?? []).map((value) => Number(value)).filter(Number.isFinite)
+    const payload = await getVouchersPagePayload({ search, sort, shopIds: shopFilters })
+    return c.html(vouchersPage(payload, '', undefined, search, sort, shopFilters))
   })
 
   app.get('/vouchers/manage', async (c) => {

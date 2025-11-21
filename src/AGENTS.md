@@ -4,22 +4,24 @@
 
 ---
 
-## Directory Structure
+## Directory Structure (suffix naming)
 
 ```
 src/
-├── db/           # Database layer (schema, connection, queries)
-├── services/     # Business logic layer (products, vouchers, changelogs)
-├── domain/       # Domain utilities (formatters, helpers)
-├── index.ts      # Application entry point (Hono routes & handlers)
-└── env.d.ts      # TypeScript environment declarations
+- db/                 # Database layer (schema, connection, queries)
+- services/           # Business logic layer (products, vouchers, changelogs)
+- domain/             # Domain utilities (formatters, helpers)
+- index.routes.ts     # Application entry point (Hono routes & handlers)
+- env.d.ts            # TypeScript environment declarations
 ```
+
+**Naming convention:** `<feature>.<role>.ts` (e.g., `products.service.ts`, `products.page.ts`, `schema.db.ts`, `formatters.domain.ts`).
 
 ---
 
 ## Layer Architecture
 
-### 1. Routes (`index.ts`)
+### 1. Routes (`index.routes.ts`)
 **Purpose:** HTTP request/response handling only
 - Define Hono routes and middleware
 - Parse request bodies and query params
@@ -79,7 +81,7 @@ export async function insertProduct(data: NewProduct) {
 
 ## File Organization
 
-### `index.ts` - Main Application
+### `index.routes.ts` - Main Application
 - Hono app initialization
 - Route definitions (`GET /products`, `POST /vouchers`, etc.)
 - HTML templates and views (inline for simplicity)
@@ -94,10 +96,10 @@ export async function insertProduct(data: NewProduct) {
 5. **Export** - `{ port, fetch }` for Bun
 
 ### Service Files Pattern
-Each feature gets one service file:
-- `services/products.ts` - Product business logic
-- `services/vouchers.ts` - Voucher business logic
-- `services/changeLogs.ts` - Changelog business logic
+Each feature gets one service file (suffix):
+- `services/products.service.ts` - Product business logic
+- `services/vouchers.service.ts` - Voucher business logic
+- `services/changeLogs.service.ts` - Changelog business logic
 
 **Service responsibilities:**
 - Export type definitions (from schema)
@@ -107,19 +109,19 @@ Each feature gets one service file:
 - Import from `domain/` for utilities
 
 ### Database Files Pattern
-One file per table/feature:
-- `db/schema.ts` - All table definitions
-- `db/connection.ts` - Database client setup
-- `db/products.ts` - Product queries
-- `db/vouchers.ts` - Voucher queries
-- `db/changeLogs.ts` - Changelog queries
+One file per table/feature (suffix):
+- `db/schema.db.ts` - All table definitions
+- `db/connection.db.ts` - Database client setup
+- `db/products.db.ts` - Product queries
+- `db/vouchers.db.ts` - Voucher queries
+- `db/changeLogs.db.ts` - Changelog queries
 
 ---
 
 ## Common Patterns
 
 ### Adding a New Route
-1. Add route handler in `index.ts`
+1. Add route handler in `index.routes.ts`
 2. Call service layer function
 3. Return HTTP response
 
@@ -138,28 +140,29 @@ app.get('/new-feature', async (c) => {
 5. Export function for routes to use
 
 ```typescript
-// services/feature.ts
+// services/feature.service.ts
 import { z } from 'zod'
-import { getFeatureData } from '../db/feature'
+import { getFeatures, insertFeature } from '../db/feature.db'
 
 const FeatureSchema = z.object({ name: z.string() })
 
 export async function createFeature(data: unknown) {
   const validated = FeatureSchema.parse(data)
-  return await insertFeatureData(validated)
+  return await insertFeature(validated)
 }
 ```
 
 ### Adding Database Queries
-1. Define schema in `db/schema.ts`
-2. Create query file `db/feature.ts`
+1. Define schema in `db/schema.db.ts`
+2. Create query file `db/feature.db.ts`
 3. Export query functions
 4. Use Drizzle query builder (type-safe)
 
 ```typescript
-// db/feature.ts
-import { db } from './connection'
-import { features } from './schema'
+// db/feature.db.ts
+import { db } from './connection.db'
+import { features } from './schema.db'
+import { eq } from 'drizzle-orm'
 
 export async function getFeatureById(id: number) {
   return await db.select().from(features).where(eq(features.id, id))
@@ -171,21 +174,19 @@ export async function getFeatureById(id: number) {
 ## Type Flow
 
 ```
-Schema (db/schema.ts)
-    ↓ (Drizzle inference)
-Types (typeof table.$inferSelect)
-    ↓ (exported from service)
-Route Handlers (index.ts)
-    ↓ (JSON response)
-Client (frontend)
+Schema (db/schema.db.ts)
+  -> Types (typeof table.$inferSelect)
+    -> Service exports
+      -> Route Handlers (index.routes.ts)
+        -> Client (frontend)
 ```
 
 **Never define types manually** - always infer from schema:
 ```typescript
-// ✅ Good
+// Good
 export type Product = typeof products.$inferSelect
 
-// ❌ Bad
+// Bad
 export interface Product { id: number, name: string }
 ```
 
@@ -195,17 +196,13 @@ export interface Product { id: number, name: string }
 
 ```
 HTTP Request
-    ↓
-Route Handler (index.ts)
-    ↓
-Service Layer (services/)
-    ├─→ Zod Validation
-    ├─→ Business Logic
-    └─→ DB Layer (db/)
-         ↓
-    Database Query
-         ↓
-    Response to Client
+  -> Route Handler (index.routes.ts)
+  -> Service Layer (services/)
+       -> Zod Validation
+       -> Business Logic
+       -> DB Layer (db/)
+            -> Database Query
+  -> Response to Client
 ```
 
 ---
@@ -214,42 +211,42 @@ Service Layer (services/)
 
 | File | Purpose |
 |------|---------|
-| `index.ts` | Routes, HTTP handlers, HTML templates |
-| `services/products.ts` | Product business logic |
-| `services/vouchers.ts` | Voucher business logic |
-| `services/changeLogs.ts` | Changelog business logic |
-| `db/schema.ts` | Database table definitions |
-| `db/connection.ts` | SQLite connection setup |
-| `domain/formatters.ts` | Money/date formatting utilities |
+| `index.routes.ts` | Routes, HTTP handlers, HTML templates |
+| `services/products.service.ts` | Product business logic |
+| `services/vouchers.service.ts` | Voucher business logic |
+| `services/changeLogs.service.ts` | Changelog business logic |
+| `db/schema.db.ts` | Database table definitions |
+| `db/connection.db.ts` | SQLite connection setup |
+| `domain/formatters.domain.ts` | Money/date formatting utilities |
 
 ---
 
 ## Working in This Directory
 
 ### To add a new feature:
-1. Define table in `db/schema.ts`
+1. Define table in `db/schema.db.ts`
 2. Generate migration: `bun run db:generate`
-3. Create `db/<feature>.ts` for queries
-4. Create `services/<feature>.ts` for business logic
-5. Add routes in `index.ts`
+3. Create `db/<feature>.db.ts` for queries
+4. Create `services/<feature>.service.ts` for business logic
+5. Add routes in `index.routes.ts`
 
 ### To modify existing feature:
 1. Find service file in `services/`
 2. Update business logic
 3. Update database queries in `db/` if needed
-4. Update routes in `index.ts` if needed
+4. Update routes in `index.routes.ts` if needed
 
 ### To debug:
 1. Check types first - TypeScript will catch most errors
 2. Use `console.log()` in service layer
-3. Enable Drizzle query logging in `db/connection.ts`
+3. Enable Drizzle query logging in `db/connection.db.ts`
 4. Inspect database with `bun run db:studio`
 
 ---
 
 ## Rules
 
-### ✅ Do This
+### Do This
 - Keep routes thin - delegate to services
 - Put business logic in service layer
 - Use Zod validation for all external inputs
@@ -257,7 +254,7 @@ Service Layer (services/)
 - Use transactions for multi-step operations
 - Import utilities from `domain/` layer
 
-### ❌ Avoid This
+### Avoid This
 - Don't put business logic in route handlers
 - Don't put business logic in database layer
 - Don't skip validation on external inputs

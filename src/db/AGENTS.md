@@ -4,32 +4,34 @@
 
 ---
 
-## Files in This Directory
+## Files in This Directory (suffix naming)
 
 ```
 db/
-├── schema.ts       # All table definitions (single source of truth)
-├── connection.ts   # SQLite database client setup
-├── products.ts     # Product-related queries
-├── vouchers.ts     # Voucher-related queries
-└── changeLogs.ts   # Changelog queries
+- schema.db.ts       # All table definitions (single source of truth)
+- connection.db.ts   # SQLite database client setup
+- products.db.ts     # Product-related queries
+- vouchers.db.ts     # Voucher-related queries
+- changeLogs.db.ts   # Changelog queries
 ```
+
+**Naming convention:** `<feature>.db.ts` for query modules, `schema.db.ts` for definitions, `connection.db.ts` for DB client.
 
 ---
 
 ## Responsibilities
 
-### ✅ This layer handles:
+### Do This Layer Handles:
 - Table schema definitions (Drizzle ORM)
 - Database connection setup
 - Low-level query functions
 - Type inference from schema
 - Data persistence
 
-### ❌ This layer does NOT handle:
+### Avoid This Layer Does NOT Handle:
 - Business logic (that's in `services/`)
 - Input validation (that's in `services/`)
-- HTTP requests/responses (that's in `index.ts`)
+- HTTP requests/responses (that's in `index.routes.ts`)
 - Formatting/utilities (that's in `domain/`)
 
 ---
@@ -38,7 +40,7 @@ db/
 
 ### Table Definition
 ```typescript
-// schema.ts
+// schema.db.ts
 import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core'
 
 export const tableName = sqliteTable('table_name', {
@@ -51,27 +53,27 @@ export const tableName = sqliteTable('table_name', {
 
 ### Type Inference
 ```typescript
-// schema.ts - ALWAYS export types from schema
+// schema.db.ts - ALWAYS export types from schema
 export type TableName = typeof tableName.$inferSelect
 export type NewTableName = typeof tableName.$inferInsert
 ```
 
 **Never define types manually** - always infer:
 ```typescript
-// ✅ Good
+// Good
 export type Product = typeof products.$inferSelect
 
-// ❌ Bad - will drift from schema
+// Bad - will drift from schema
 interface Product { id: number, name: string }
 ```
 
 ### Money Columns
 **ALWAYS use integers for money** (store cents, not dollars):
 ```typescript
-// ✅ Good - integer for cents
+// Good - integer for cents
 cost: integer('cost')
 
-// ❌ Bad - floats cause rounding errors
+// Bad - floats cause rounding errors
 price: real('price')
 ```
 
@@ -101,15 +103,15 @@ updatedAt: integer('updated_at', { mode: 'timestamp' })
 ## Query File Patterns
 
 Each feature gets a query file:
-- `products.ts` - Product queries
-- `vouchers.ts` - Voucher queries
-- `changeLogs.ts` - Changelog queries
+- `products.db.ts` - Product queries
+- `vouchers.db.ts` - Voucher queries
+- `changeLogs.db.ts` - Changelog queries
 
 ### Query Function Structure
 ```typescript
-// db/products.ts
-import { db } from './connection'
-import { products } from './schema'
+// db/products.db.ts
+import { db } from './connection.db'
+import { products } from './schema.db'
 import { eq } from 'drizzle-orm'
 
 // Simple select
@@ -149,7 +151,7 @@ export async function deleteProduct(id: number) {
 
 ## Database Connection
 
-### Setup (`connection.ts`)
+### Setup (`connection.db.ts`)
 ```typescript
 import { drizzle } from 'drizzle-orm/bun-sqlite'
 import { Database } from 'bun:sqlite'
@@ -251,15 +253,15 @@ const result = await db.execute(
 ## Schema Management
 
 ### Adding a New Table
-1. Define table in `schema.ts`
+1. Define table in `schema.db.ts`
 2. Export types from schema
 3. Generate migration: `bun run db:generate`
 4. Review migration in `drizzle/` folder
 5. Apply migration: `bun run db:migrate`
-6. Create query file `db/<table>.ts`
+6. Create query file `db/<table>.db.ts`
 
 ### Modifying Existing Table
-1. Update table definition in `schema.ts`
+1. Update table definition in `schema.db.ts`
 2. Generate migration: `bun run db:generate`
 3. Review migration carefully
 4. Apply migration: `bun run db:migrate`
@@ -300,22 +302,22 @@ INSERT INTO product_statuses (name) VALUES
 
 ```
 products
-  ├─→ product_statuses (status)
-  ├─→ suppliers (supplier)
-  └─→ categories (category, subcategory)
+  -> product_statuses (status)
+  -> suppliers (supplier)
+  -> categories (category, subcategory)
 
 product_pricing
-  ├─→ products (product_sku)
-  └─→ shops (shop)
+  -> products (product_sku)
+  -> shops (shop)
 
 vouchers
-  ├─→ shops (shop)
-  ├─→ voucher_discount_types (type)
-  └─→ voucher_types (category)
+  -> shops (shop)
+  -> voucher_discount_types (type)
+  -> voucher_types (category)
 
 listing_shops
-  ├─→ listings (listing)
-  └─→ shops (shop)
+  -> listings (listing)
+  -> shops (shop)
 ```
 
 ---
@@ -323,20 +325,20 @@ listing_shops
 ## Working in This Directory
 
 ### To add a new query:
-1. Find the appropriate file (e.g., `products.ts`)
+1. Find the appropriate file (e.g., `products.db.ts`)
 2. Write function using Drizzle query builder
 3. Export function
 4. Import in service layer
 
 ### To add a new table:
-1. Define in `schema.ts`
+1. Define in `schema.db.ts`
 2. Export types
 3. Generate migration
 4. Apply migration
 5. Create query file
 
 ### To debug queries:
-1. Enable logger in `connection.ts`
+1. Enable logger in `connection.db.ts`
 2. Check SQL output in console
 3. Use Drizzle Studio: `bun run db:studio`
 4. Verify data at http://localhost:4983
@@ -345,8 +347,8 @@ listing_shops
 
 ## Rules
 
-### ✅ Do This
-- Define all tables in `schema.ts`
+### Do This
+- Define all tables in `schema.db.ts`
 - Export types using `$inferSelect` and `$inferInsert`
 - Use Drizzle query builder (type-safe)
 - Store money as integers (cents)
@@ -354,7 +356,7 @@ listing_shops
 - Use transactions for multi-step operations
 - Keep queries simple and focused
 
-### ❌ Avoid This
+### Avoid This
 - Don't put business logic here (use `services/`)
 - Don't validate inputs here (use Zod in `services/`)
 - Don't use `real` type for money (use `integer`)
@@ -367,7 +369,7 @@ listing_shops
 ## Migration Workflow
 
 ```bash
-# 1. Update schema in schema.ts
+# 1. Update schema in schema.db.ts
 # 2. Generate migration
 bun run db:generate
 

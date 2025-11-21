@@ -6,9 +6,10 @@ import {
   updateProductDetails,
   type ProductCreateResult,
   type ProductUpdateResult,
-} from '../services/products'
-import { productPage } from '../ui/pages/products'
-import { productEditorPage } from '../ui/pages/productEditor'
+  type ProductSortOption,
+} from '../services/products.service'
+import { productPage } from '../ui/pages/products.page'
+import { productEditorPage } from '../ui/pages/productEditor.page'
 
 const parseCostInput = (entry: unknown, label = 'Cost') => {
   const raw = (entry ?? '').toString().trim()
@@ -65,8 +66,32 @@ const respondWithProductFeedback = async (
 
 export const registerProductRoutes = (app: Hono) => {
   app.get('/products', async (c) => {
-    const { products, statuses, suppliers } = await getProductPagePayload()
-    return c.html(productPage(products, statuses, suppliers))
+    const search = c.req.query('search') ?? ''
+    const sortQuery = c.req.query('sort') ?? ''
+    const sort: ProductSortOption = ['name-asc', 'name-desc', 'sku-asc', 'sku-desc'].includes(sortQuery)
+      ? (sortQuery as ProductSortOption)
+      : 'name-asc'
+    const supplierFilters = (c.req.queries('supplierId') ?? []).map((value) => Number(value)).filter(Number.isFinite)
+    const statusFilters = (c.req.queries('statusId') ?? []).map((value) => Number(value)).filter(Number.isFinite)
+    const { products, statuses, suppliers } = await getProductPagePayload({
+      search,
+      sort,
+      supplierIds: supplierFilters,
+      statusIds: statusFilters,
+    })
+    return c.html(
+      productPage(
+        products,
+        statuses,
+        suppliers,
+        '',
+        'text-sm text-white/70 uppercase tracking-[0.3em]',
+        search,
+        sort,
+        supplierFilters,
+        statusFilters
+      )
+    )
   })
 
   app.get('/products/manage', async (c) => {
