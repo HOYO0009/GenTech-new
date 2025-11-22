@@ -45,12 +45,13 @@ const respondWithProductFeedback = async (
   const textColor = result.status === 200 ? 'text-emerald-300' : 'text-amber-400'
   const messageHtml = `<div class="px-3 py-2 ${textColor}">${result.message}</div>`
   const isHxRequest = c.req.header('HX-Request') === 'true'
+  const httpStatus = isHxRequest ? 200 : result.status
   if (isHxRequest) {
     if (result.status === 200 && hxRedirect) {
       c.header('HX-Redirect', hxRedirect)
-      return c.html('', result.status)
+      return c.html('', httpStatus)
     }
-    return c.html(messageHtml, result.status)
+    return c.html(messageHtml, httpStatus)
   }
   const payload = await getProductPagePayload()
   return c.html(
@@ -60,7 +61,8 @@ const respondWithProductFeedback = async (
       payload.suppliers,
       result.message,
       `text-sm uppercase tracking-[0.3em] ${textColor}`
-    )
+    ),
+    httpStatus
   )
 }
 
@@ -109,14 +111,14 @@ export const registerProductRoutes = (app: Hono) => {
     try {
       costCents = parseCostInput(form.get('cost'))
     } catch (error) {
-      return c.html((error as Error).message, 400)
+      return respondWithProductFeedback(c, { status: 400, message: (error as Error).message })
     }
     const purchaseRemarks = (form.get('purchaseRemarks') ?? '').toString()
     let supplierId: number | null = null
     try {
       supplierId = parseSupplierIdInput(form.get('supplierId'))
     } catch (error) {
-      return c.html((error as Error).message, 400)
+      return respondWithProductFeedback(c, { status: 400, message: (error as Error).message })
     }
     const supplierLink = (form.get('supplierLink') ?? '').toString().trim()
     const result = await updateProductDetails({
@@ -141,14 +143,14 @@ export const registerProductRoutes = (app: Hono) => {
     try {
       costCents = parseCostInput(form.get('cost'))
     } catch (error) {
-      return c.html((error as Error).message, 400)
+      return respondWithProductFeedback(c, { status: 400, message: (error as Error).message })
     }
     const purchaseRemarks = (form.get('purchaseRemarks') ?? '').toString()
     let supplierId: number | null = null
     try {
       supplierId = parseSupplierIdInput(form.get('supplierId'))
     } catch (error) {
-      return c.html((error as Error).message, 400)
+      return respondWithProductFeedback(c, { status: 400, message: (error as Error).message })
     }
     const supplierLink = (form.get('supplierLink') ?? '').toString().trim()
     const result = await createProduct({

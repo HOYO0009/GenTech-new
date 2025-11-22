@@ -305,6 +305,7 @@ export const productEditorPage = ({ products, statuses, suppliers }: ProductPage
           supplierLinkInput && (supplierLinkInput.value = product.supplierLink ?? '')
           remarksInput && (remarksInput.value = product.purchaseRemarks ?? '')
           originalSkuInput.value = product.sku
+          clearWarnings()
           updateSubmitState()
         }
 
@@ -316,6 +317,7 @@ export const productEditorPage = ({ products, statuses, suppliers }: ProductPage
             } else {
               fillFields('')
             }
+            clearWarnings()
           }
           updateSubmitState()
         })
@@ -337,10 +339,10 @@ export const productEditorPage = ({ products, statuses, suppliers }: ProductPage
         modeSelect?.addEventListener('change', () => {
           clearDeleteSelection()
           const nextMode = getCurrentMode()
+          clearWarnings()
           if (nextMode === 'add') {
             form.reset()
             originalSkuInput.value = ''
-            clearWarnings()
           } else {
             existingInput && (existingInput.value = '')
             originalSkuInput.value = ''

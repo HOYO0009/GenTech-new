@@ -1,4 +1,4 @@
-import { toCents } from '../domain/formatters.domain'
+import { toCents, escapeHtml } from '../domain/formatters.domain'
 import { recordChange } from './changeLogs.service'
 import { FieldChangeDetector, FieldCheck } from '../domain/detectors.domain'
 import { ensureAmount } from '../domain/validators.domain'
@@ -84,18 +84,27 @@ export const discountLabelByType: Record<string, string> = {
   percentage: 'Discount (%)',
 }
 
-const voucherConfirmationLabel = (entry: VoucherSummary) => {
-  const shop = entry.shopName ?? 'Unknown shop'
-  const category = entry.voucherTypeName ?? 'Voucher'
-  const discount = entry.voucherDiscountTypeLabel ?? entry.voucherDiscountTypeKey ?? 'Discount'
+const voucherConfirmationLabel = (entry: VoucherSummary, sanitize = false) => {
+  const format = sanitize ? escapeHtml : (value: string) => value
+  const shop = format(entry.shopName ?? 'Unknown shop')
+  const category = format(entry.voucherTypeName ?? 'Voucher')
+  const discount = format(entry.voucherDiscountTypeLabel ?? entry.voucherDiscountTypeKey ?? 'Discount')
   return `#${entry.id} - ${shop} - ${category} / ${discount}`
 }
 
-const voucherConfirmationShortLabel = (entry: VoucherSummary) => {
-  const shop = entry.shopName ?? 'Unknown shop'
-  const category = entry.voucherTypeName ?? 'Voucher'
+const voucherConfirmationShortLabel = (entry: VoucherSummary, sanitize = false) => {
+  const format = sanitize ? escapeHtml : (value: string) => value
+  const shop = format(entry.shopName ?? 'Unknown shop')
+  const category = format(entry.voucherTypeName ?? 'Voucher')
   return `${shop} - ${category}`
 }
+
+const voucherConfirmationExpectations = (entry: VoucherSummary): string[] => [
+  voucherConfirmationLabel(entry, false),
+  voucherConfirmationShortLabel(entry, false),
+  voucherConfirmationLabel(entry, true),
+  voucherConfirmationShortLabel(entry, true),
+]
 
 export class VoucherService {
   constructor(
@@ -324,14 +333,11 @@ export class VoucherService {
     const options: DeleteWithConfirmationOptions<VoucherSummary, number> = {
       identifierLabel: 'Voucher',
       notFoundMessage: 'Voucher not found.',
-      expectedConfirmation: (existing) => [
-        voucherConfirmationLabel(existing),
-        voucherConfirmationShortLabel(existing),
-      ],
+      expectedConfirmation: (existing) => voucherConfirmationExpectations(existing),
       confirmationErrorMessage: 'Confirmation does not match voucher selection.',
       deleteEntity: async (existing) => this.repository.deleteVoucherById(existing.id),
       successMessage: () => 'Voucher deleted.',
-      loadExisting: () => this.repository.getVoucherById(id),
+      loadExisting: (identifier) => this.repository.getVoucherById(identifier),
       recordChange: (existing) =>
         recordChange({
           tableName: 'vouchers',
@@ -341,11 +347,17 @@ export class VoucherService {
           source: 'vouchers/delete',
         }),
     }
-    return deleteWithConfirmation({
+    const result = await deleteWithConfirmation({
       identifier: id,
       confirmation,
       options,
     })
+
+    // Convert DeleteResult to ServiceResult
+    return {
+      status: result.status,
+      message: result.message,
+    }
   }
 }
 

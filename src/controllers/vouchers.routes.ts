@@ -69,14 +69,17 @@ const respondWithVoucherHistorySection = async (c: Context, result: VoucherCreat
   const payload = await getVouchersPagePayload()
   const textColor = result.status === 200 ? 'text-emerald-300' : 'text-amber-400'
   const messageClass = `px-3 py-2 text-[0.65rem] uppercase tracking-[0.35em] ${textColor}`
+  const messageHtml = `<div class="${messageClass}">${result.message}</div>`
   const historySection = renderVoucherHistorySection(payload.vouchers, result.message, messageClass)
   const isHxRequest = c.req.header('HX-Request') === 'true'
+  const httpStatus = isHxRequest ? 200 : result.status
   if (isHxRequest) {
-    return c.html(historySection, result.status)
+    // Provide inline feedback for the editor while still updating voucher history out-of-band.
+    return c.html(`${messageHtml}${historySection}`, httpStatus)
   }
   return c.html(
     vouchersPage(payload, result.message, messageClass),
-    result.status
+    httpStatus
   )
 }
 
@@ -88,15 +91,19 @@ const respondWithVoucherFeedback = async (
   const textColor = result.status === 200 ? 'text-emerald-300' : 'text-amber-400'
   const messageHtml = `<div class="px-3 py-2 ${textColor}">${result.message}</div>`
   const isHxRequest = c.req.header('HX-Request') === 'true'
+  const httpStatus = isHxRequest ? 200 : result.status
   if (isHxRequest) {
     if (result.status === 200 && hxRedirect) {
       c.header('HX-Redirect', hxRedirect)
-      return c.html('', result.status)
+      return c.html('', httpStatus)
     }
-    return c.html(messageHtml, result.status)
+    return c.html(messageHtml, httpStatus)
   }
   const payload = await getVouchersPagePayload()
-  return c.html(vouchersPage(payload, result.message, `text-sm uppercase tracking-[0.3em] ${textColor}`))
+  return c.html(
+    vouchersPage(payload, result.message, `text-sm uppercase tracking-[0.3em] ${textColor}`),
+    httpStatus
+  )
 }
 
 export const registerVoucherRoutes = (app: Hono) => {
@@ -122,10 +129,7 @@ export const registerVoucherRoutes = (app: Hono) => {
     try {
       parsed = parseVoucherForm(form)
     } catch (error) {
-      return c.html(
-        `<div class="px-3 py-2 text-amber-400">${(error as Error).message}</div>`,
-        400
-      )
+      return respondWithVoucherFeedback(c, { status: 400, message: (error as Error).message })
     }
     const { voucherId, ...rest } = parsed
     const result = voucherId
@@ -141,7 +145,7 @@ export const registerVoucherRoutes = (app: Hono) => {
     const confirmation = (form.get('confirmation') ?? '').toString().trim()
     const parsedId = Number(idParam)
     if (!Number.isFinite(parsedId) || !Number.isInteger(parsedId) || parsedId <= 0) {
-      return c.html('<div class="px-3 py-2 text-amber-400">Invalid voucher selection.</div>', 400)
+      return respondWithVoucherHistorySection(c, { status: 400, message: 'Invalid voucher selection.' })
     }
     const result = await deleteVoucherRecordWithConfirmation(parsedId, confirmation)
     return respondWithVoucherHistorySection(c, result)
