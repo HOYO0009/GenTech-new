@@ -1,3 +1,5 @@
+import { uiClasses } from '../styles/classes.ui'
+
 export type EditorShellOptions = {
   heading: string
   description: string
@@ -37,24 +39,24 @@ export const renderEditorShell = (options: EditorShellOptions) => {
   const modes = options.modeOptions ?? defaultModeOptions(options.addLabel, options.editLabel)
   const deleteActionAttr = options.deleteAction ? ` data-editor-delete-action="${options.deleteAction}"` : ''
   const deleteLabel = options.deleteLabel ?? 'Delete'
-  return `<section class="rounded-2xl border border-white/10 bg-black/70 p-6 space-y-4">
+  return `<section class="${uiClasses.panel.base}">
       <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p class="text-sm uppercase tracking-[0.3em] text-white/70">${options.heading}</p>
-          <p class="text-[0.65rem] uppercase tracking-[0.4em] text-white/50">${options.description}</p>
+          <p class="${uiClasses.text.heading}">${options.heading}</p>
+          <p class="${uiClasses.text.metadata}">${options.description}</p>
         </div>
-        <label class="text-[0.65rem] uppercase tracking-[0.3em] text-white/70 flex flex-col">
+        <label class="${uiClasses.text.labelBright} flex flex-col">
           Action
           <select
             id="${options.modeSelectId}"
             data-editor-mode-select="${options.formId}"
-            class="mt-1 w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
+            class="${uiClasses.input.select}"
           >
             ${modes}
           </select>
         </label>
       </div>
-      <div id="${options.feedbackId}" data-editor-feedback class="text-sm text-white/70 uppercase tracking-[0.3em]"></div>
+      <div id="${options.feedbackId}" data-editor-feedback class="${uiClasses.text.feedback}"></div>
       <form
         data-editor-form="${options.formId}"
         data-editor-mode-select-id="${options.modeSelectId}"
@@ -64,12 +66,12 @@ export const renderEditorShell = (options: EditorShellOptions) => {
         hx-post="${options.addAction}"
         hx-target="#${options.feedbackId}"
         hx-swap="innerHTML"
-        class="space-y-4"
+        class="${uiClasses.layout.space.y4}"
       >
         ${options.formBody}
         <button
           type="submit"
-          class="primary-btn w-full"
+          class="${uiClasses.button.primary}"
           data-editor-submit
           data-editor-add-label="${options.addLabel}"
           data-editor-edit-label="${options.editLabel}"
@@ -87,12 +89,12 @@ export const renderSearchSortControls = (options: SearchSortTemplateOptions) => 
   const actionAttr = options.action ? ` action="${options.action}" method="get"` : ''
   const variant = options.variant ?? 'section'
   const wrapperStart =
-    variant === 'section' ? '<section class="rounded-2xl border border-white/10 bg-black/70 p-6">' : ''
+    variant === 'section' ? `<section class="${uiClasses.panel.base}">` : ''
   const wrapperEnd = variant === 'section' ? '</section>' : ''
   const formLayout =
     variant === 'section'
-      ? 'grid gap-4 md:grid-cols-[2fr_auto_auto] items-center'
-      : 'grid gap-3 md:grid-cols-[2fr_auto_auto] items-end w-full'
+      ? uiClasses.layout.grid.searchControlsSection
+      : uiClasses.layout.grid.searchControls
   const openEditorLabel = options.openEditorLabel ?? 'Open editor'
   const sidebarTriggerLabel = options.sidebarTriggerLabel ?? 'Sort & Filter'
   const hiddenInputs = Object.entries(options.hiddenParams ?? {})
@@ -105,14 +107,14 @@ export const renderSearchSortControls = (options: SearchSortTemplateOptions) => 
     .join('')
   return `${wrapperStart}
       <form id="${options.searchId}-form" class="${formLayout}" ${actionAttr}>
-        <label class="flex flex-col gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-white/70">
+        <label class="flex flex-col gap-2 ${uiClasses.text.labelBright}">
           Search
           <input
             id="${options.searchId}"
             name="${searchName}"
             type="search"
             placeholder="${searchPlaceholder}"
-            class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+            class="${uiClasses.input.search}"
             value="${options.searchValue ? options.searchValue : ''}"
             data-shortcut-target="search"
           />
@@ -120,14 +122,14 @@ export const renderSearchSortControls = (options: SearchSortTemplateOptions) => 
         ${hiddenInputs}
         ${
           options.sidebarId
-            ? `<button type="button" data-sidebar-trigger="${options.sidebarId}" data-shortcut-target="sidebar" class="w-full md:w-auto rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-white hover:border-white/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+            ? `<button type="button" data-sidebar-trigger="${options.sidebarId}" data-shortcut-target="sidebar" class="${uiClasses.button.secondaryCompact} w-full md:w-auto">
                 ${sidebarTriggerLabel}
               </button>`
             : ''
         }
         ${
           options.openEditorHref
-            ? `<a href="${options.openEditorHref}" data-shortcut-target="editor" class="primary-btn w-full md:w-auto text-center">${openEditorLabel}</a>`
+            ? `<a href="${options.openEditorHref}" data-shortcut-target="editor" class="${uiClasses.button.primary} md:w-auto text-center">${openEditorLabel}</a>`
             : ''
         }
       </form>
@@ -161,6 +163,20 @@ export const editorBaseScript = `
               const modes = target ? target.split(/\\s+/).filter(Boolean) : ['both']
               const shouldHide = !modes.includes('both') && !modes.includes(mode)
               section.classList.toggle('hidden', shouldHide)
+              const controls = section.querySelectorAll('input, select, textarea, button')
+              controls.forEach((control) => {
+                if (shouldHide) {
+                  if (control.required) {
+                    control.dataset.editorWasRequired = 'true'
+                    control.required = false
+                  }
+                  return
+                }
+                if (control.dataset.editorWasRequired === 'true') {
+                  control.required = true
+                }
+                delete control.dataset.editorWasRequired
+              })
             })
             if (submitButton) {
               let label = submitButton.dataset.editorAddLabel

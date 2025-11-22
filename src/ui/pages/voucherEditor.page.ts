@@ -17,10 +17,12 @@ export const voucherEditorPage = (payload: VouchersPagePayload) => {
     .map((type) => `<option value="${type.id}">${type.name}</option>`)
     .join('')
   const voucherEntries = vouchers.map((voucher) => {
-    const label = `#${voucher.id} · ${voucher.shopName} · ${voucher.voucherCategoryLabel} / ${voucher.voucherDiscountTypeLabel}`
+    const label = `#${voucher.id} - ${voucher.shopName} - ${voucher.voucherCategoryLabel} / ${voucher.voucherDiscountTypeLabel}`
     return { label, voucher }
   })
-  const voucherListOptions = voucherEntries.map(({ label }) => `<option value="${label}"></option>`).join('')
+  const voucherSelectOptions = voucherEntries
+    .map(({ label, voucher }) => `<option value="${voucher.id}">${label}</option>`)
+    .join('')
   const voucherEntriesJson = safeJson(voucherEntries)
   const formBody = `
     <input type="hidden" name="voucherId" value="" />
@@ -30,13 +32,13 @@ export const voucherEditorPage = (payload: VouchersPagePayload) => {
     >
       <label class="text-xs uppercase tracking-[0.3em] text-white/70 block">
         Voucher to edit
-        <input
+        <select
           class="mt-1 w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
-          list="voucher-list"
           name="existingVoucher"
-          placeholder="Start typing to find a voucher"
-          autocomplete="off"
-        />
+        >
+          <option value="">Select a voucher</option>
+          ${voucherSelectOptions}
+        </select>
       </label>
       <p class="text-[0.65rem] uppercase tracking-[0.3em] text-white/50">
         Select a voucher above to edit its rules, then submit once updates are ready.
@@ -51,14 +53,14 @@ export const voucherEditorPage = (payload: VouchersPagePayload) => {
       </p>
       <label class="text-xs uppercase tracking-[0.3em] text-white/70 block">
         Voucher to delete
-        <input
+        <select
           class="mt-1 w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
-          list="voucher-list"
           name="deleteVoucherSelection"
           data-editor-delete-selection
-          placeholder="Start typing to find a voucher"
-          autocomplete="off"
-        />
+        >
+          <option value="">Select a voucher</option>
+          ${voucherSelectOptions}
+        </select>
       </label>
       <label class="text-xs uppercase tracking-[0.3em] text-white/70 block">
         Confirm deletion
@@ -71,9 +73,6 @@ export const voucherEditorPage = (payload: VouchersPagePayload) => {
         />
       </label>
     </div>
-    <datalist id="voucher-list">
-      ${voucherListOptions}
-    </datalist>
     <div data-editor-mode-section="add edit" class="space-y-4">
       <label class="text-xs uppercase tracking-[0.3em] text-white/70 block">
         Shop
@@ -182,9 +181,10 @@ export const voucherEditorPage = (payload: VouchersPagePayload) => {
         const minSpendInput = form.querySelector('[name="minSpend"]')
         const discountInput = form.querySelector('[name="discount"]')
         const maxDiscountInput = form.querySelector('[name="maxDiscount"]')
-        const optionMap = new Map(
-          voucherEntries.map(({ label, voucher }) => [label, voucher])
+        const voucherMap = new Map(
+          voucherEntries.map(({ label, voucher }) => [String(voucher.id), voucher])
         )
+        const voucherLabelMap = new Map(voucherEntries.map(({ label, voucher }) => [String(voucher.id), label]))
         const deleteSelectionInput = form.querySelector('[data-editor-delete-selection]')
         const deleteConfirmationInput = form.querySelector('[data-editor-delete-confirmation]')
         const centsToDisplay = (value) => (value / 100).toFixed(2)
@@ -245,8 +245,8 @@ export const voucherEditorPage = (payload: VouchersPagePayload) => {
             return
           }
           if (isDeleteMode()) {
-            const candidate = (deleteSelectionInput?.value ?? '').toString().trim()
-            const match = optionMap.get(candidate)
+            const candidateId = (deleteSelectionInput?.value ?? '').toString().trim()
+            const match = voucherMap.get(candidateId)
             const hasSelection = Boolean(match)
             voucherIdInput && (voucherIdInput.value = hasSelection ? String(match.id) : '')
             if (!hasSelection) {
@@ -286,19 +286,21 @@ export const voucherEditorPage = (payload: VouchersPagePayload) => {
           updateSubmitState()
         }
 
-        selectionInput?.addEventListener('input', (event) => {
+        selectionInput?.addEventListener('change', (event) => {
           if (!isEditMode()) return
-          const candidate = (event.target.value ?? '').toString().trim()
-          const match = optionMap.get(candidate)
+          const candidateId = (event.target.value ?? '').toString().trim()
+          const match = voucherMap.get(candidateId)
           fillFields(match)
           updateSubmitState()
         })
-        deleteSelectionInput?.addEventListener('input', (event) => {
-          const candidate = (event.target.value ?? '').toString().trim()
-          updateDeletePlaceholder(candidate)
+        deleteSelectionInput?.addEventListener('change', (event) => {
+          const candidateId = (event.target.value ?? '').toString().trim()
+          const matchLabel = voucherLabelMap.get(candidateId) ?? candidateId
+          updateDeletePlaceholder(matchLabel)
           if (deleteConfirmationInput) {
             deleteConfirmationInput.value = ''
           }
+          voucherIdInput && (voucherIdInput.value = candidateId ? candidateId : '')
           updateSubmitState()
         })
         deleteConfirmationInput?.addEventListener('input', updateSubmitState)

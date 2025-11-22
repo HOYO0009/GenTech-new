@@ -1,5 +1,7 @@
 import { formatTimestamp, escapeHtml, prettyPayload } from '../domain/formatters.domain'
-import { ChangeLogEntry, listRecentChanges, logDatabaseChange, LogPayload } from '../db/changeLogs.db'
+import { ChangeLogEntry, LogPayload } from '../db/changeLogs.db'
+import { IChangeLogRepository } from '../repositories/changeLog.repository.interface'
+import { ChangeLogRepository } from '../repositories/changeLog.repository'
 
 export interface ChangeLogEvent {
   id: ChangeLogEntry['id']
@@ -11,25 +13,39 @@ export interface ChangeLogEvent {
   source: string | null
 }
 
-export async function listChangeEvents(limit = 40): Promise<ChangeLogEvent[]> {
-  const changes = await listRecentChanges(limit)
+export class ChangeLogsService {
+  constructor(private repository: IChangeLogRepository) {}
 
-  return changes.map((change) => {
-    const tableLabel = change.tableName ? escapeHtml(change.tableName) : 'database'
-    const payload = prettyPayload(change.payload)
+  async listChangeEvents(limit = 40): Promise<ChangeLogEvent[]> {
+    const changes = await this.repository.listRecentChanges(limit)
 
-    return {
-      id: change.id,
-      occurredAt: formatTimestamp(change.occurredAt),
-      tableLabel,
-      action: escapeHtml(change.action),
-      description: escapeHtml(change.description),
-      payload: payload ? escapeHtml(payload) : null,
-      source: change.source ? escapeHtml(change.source) : null,
-    }
-  })
+    return changes.map((change) => {
+      const tableLabel = change.tableName ? escapeHtml(change.tableName) : 'database'
+      const payload = prettyPayload(change.payload)
+
+      return {
+        id: change.id,
+        occurredAt: formatTimestamp(change.occurredAt),
+        tableLabel,
+        action: escapeHtml(change.action),
+        description: escapeHtml(change.description),
+        payload: payload ? escapeHtml(payload) : null,
+        source: change.source ? escapeHtml(change.source) : null,
+      }
+    })
+  }
+
+  async recordChange(entry: LogPayload): Promise<void> {
+    await this.repository.logDatabaseChange(entry)
+  }
 }
 
-export async function recordChange(entry: LogPayload) {
-  await logDatabaseChange(entry)
+const defaultChangeLogsService = new ChangeLogsService(new ChangeLogRepository())
+
+export async function listChangeEvents(limit = 40): Promise<ChangeLogEvent[]> {
+  return defaultChangeLogsService.listChangeEvents(limit)
+}
+
+export async function recordChange(entry: LogPayload): Promise<void> {
+  return defaultChangeLogsService.recordChange(entry)
 }

@@ -11,6 +11,8 @@ src/
 - db/                 # Database layer (schema, connection, queries)
 - services/           # Business logic layer (products, vouchers, changelogs)
 - domain/             # Domain utilities (formatters, helpers)
+- repositories/       # Repository adapters wrapping db layer
+- ui/                 # Server-rendered UI fragments, pages, and styles
 - index.routes.ts     # Application entry point (Hono routes & handlers)
 - env.d.ts            # TypeScript environment declarations
 ```
@@ -269,3 +271,5 @@ HTTP Request
 - **Database Layer:** [db/AGENTS.md](db/AGENTS.md)
 - **Service Layer:** [services/AGENTS.md](services/AGENTS.md)
 - **Domain Layer:** [domain/AGENTS.md](domain/AGENTS.md)
+- **Repository Layer:** [repositories/AGENTS.md](repositories/AGENTS.md)
+- **UI Layer:** [ui/AGENTS.md](ui/AGENTS.md)

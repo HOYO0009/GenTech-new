@@ -9,9 +9,10 @@
 ```
 domain/
 - formatters.domain.ts   # Money, timestamp, HTML, and JSON formatting utilities
+- strategies/            # Filtering/sorting strategies (camelCase filenames)
 ```
 
-**Naming convention:** `<feature>.domain.ts` for shared utilities.
+**Naming convention:** `<feature>.domain.ts` for shared utilities. Strategies inside `strategies/` use camelCase filenames (e.g. `voucherSort.strategy.ts`, `filterStrategy.interface.ts`) with PascalCase classes.
 
 ---
 

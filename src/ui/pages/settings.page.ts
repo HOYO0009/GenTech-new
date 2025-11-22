@@ -1,5 +1,4 @@
 import { layout } from '../layout.ui'
-import { shortcutsClientScript } from '../../domain/shortcuts.domain'
 
 export const settingsPage = () => {
   const form = `<section class="rounded-2xl border border-white/10 bg-black/70 p-6 space-y-6">
@@ -47,7 +46,6 @@ export const settingsPage = () => {
   </div>`
 
   const extraHead = `
-    <script>${shortcutsClientScript()}</script>
     <script>
       document.addEventListener('DOMContentLoaded', () => {
         const api = window.gentechShortcuts

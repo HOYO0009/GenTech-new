@@ -13,8 +13,8 @@ export const productEditorPage = ({ products, statuses, suppliers }: ProductPage
     '<option value="">Unassigned</option>',
     ...suppliers.map((supplier) => `<option value="${supplier.id}">${supplier.name}</option>`),
   ].join('')
-  const datalistOptions = products
-    .map((product) => `<option value="${product.sku}">${product.name}</option>`)
+  const productSelectOptions = products
+    .map((product) => `<option value="${product.sku}">${product.sku} — ${product.name}</option>`)
     .join('')
   const productJson = safeJson(products)
   const formBody = `
@@ -25,13 +25,13 @@ export const productEditorPage = ({ products, statuses, suppliers }: ProductPage
     >
       <label class="text-xs uppercase tracking-[0.3em] text-white/70 block">
         Product to edit
-        <input
+        <select
           class="mt-1 w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
-          list="product-sku-list"
           name="existingSku"
-          placeholder="Start typing SKU or name"
-          autocomplete="off"
-        />
+        >
+          <option value="">Select a product</option>
+          ${productSelectOptions}
+        </select>
       </label>
       <p class="text-[0.65rem] uppercase tracking-[0.3em] text-white/50">
         Selecting an SKU will populate the fields below. Make edits and submit to save changes.
@@ -46,14 +46,14 @@ export const productEditorPage = ({ products, statuses, suppliers }: ProductPage
       </p>
       <label class="text-xs uppercase tracking-[0.3em] text-white/70 block">
         Product to delete
-        <input
+        <select
           class="mt-1 w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
-          list="product-sku-list"
           name="deleteProductSelection"
           data-editor-delete-selection
-          placeholder="Start typing SKU to delete"
-          autocomplete="off"
-        />
+        >
+          <option value="">Select a product</option>
+          ${productSelectOptions}
+        </select>
       </label>
       <label class="text-xs uppercase tracking-[0.3em] text-white/70 block">
         Confirm deletion
@@ -66,9 +66,6 @@ export const productEditorPage = ({ products, statuses, suppliers }: ProductPage
         />
       </label>
     </div>
-    <datalist id="product-sku-list">
-      ${datalistOptions}
-    </datalist>
     <div data-editor-mode-section="add edit" class="space-y-4">
       <label
         data-editor-mode-section="add"
@@ -311,11 +308,13 @@ export const productEditorPage = ({ products, statuses, suppliers }: ProductPage
           updateSubmitState()
         }
 
-        existingInput?.addEventListener('input', (event) => {
+        existingInput?.addEventListener('change', (event) => {
           if (!isAddMode()) {
             const next = (event.target.value ?? '').toString().trim()
             if (next) {
               fillFields(next)
+            } else {
+              fillFields('')
             }
           }
           updateSubmitState()
@@ -324,7 +323,7 @@ export const productEditorPage = ({ products, statuses, suppliers }: ProductPage
         skuInput?.addEventListener('input', validateUniqueness)
         nameInput?.addEventListener('input', validateUniqueness)
 
-        deleteSelectionInput?.addEventListener('input', (event) => {
+        deleteSelectionInput?.addEventListener('change', (event) => {
           const next = (event.target.value ?? '').toString().trim()
           skuInput && (skuInput.value = next)
           updateDeletePlaceholder(next)

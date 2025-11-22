@@ -1,5 +1,6 @@
 import { currencyClientScript, supportedCurrencies } from '../domain/currency.domain'
 import { moneyClientScript } from '../domain/formatters.domain'
+import { shortcutsClientScript } from '../domain/shortcuts.domain'
 
 export type SiteSection = 'home' | 'products' | 'vouchers' | 'changes' | 'settings'
 
@@ -165,6 +166,7 @@ export const layout = (
       <script src="https://cdn.tailwindcss.com"></script>
       <script>${currencyClientScript()}</script>
       <script>${moneyClientScript()}</script>
+      <script>${shortcutsClientScript()}</script>
       ${visualFoundation}
       ${extraHead}
     </head>

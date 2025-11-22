@@ -22,6 +22,8 @@ GenTech-new/
   - db/                # Database layer (schema, queries, connection)
   - services/          # Business logic (product, voucher, changelog services)
   - domain/            # Domain utilities (formatters, helpers)
+  - repositories/      # Repository adapters around db layer
+  - ui/                # Server-rendered UI templates and styles
   - index.routes.ts    # Main application entry (routes, handlers)
   - env.d.ts           # TypeScript environment declarations
 - scripts/              # Migration and maintenance scripts
