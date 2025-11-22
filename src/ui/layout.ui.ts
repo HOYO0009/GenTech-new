@@ -1,3 +1,6 @@
+import { currencyClientScript, supportedCurrencies } from '../domain/currency.domain'
+import { moneyClientScript } from '../domain/formatters.domain'
+
 export type SiteSection = 'home' | 'products' | 'vouchers' | 'changes' | 'settings'
 
 const navBar = (active: SiteSection) => `
@@ -7,6 +10,35 @@ const navBar = (active: SiteSection) => `
       <a class="hover:text-white transition ${active === 'vouchers' ? 'text-white' : 'text-red-400'}" href="/vouchers">Vouchers</a>
       <a class="hover:text-white transition ${active === 'changes' ? 'text-white' : 'text-red-400'}" href="/changes">Changes</a>
       <a class="hover:text-white transition ${active === 'settings' ? 'text-white' : 'text-red-400'}" href="/settings">Settings</a>
+      <div class="relative">
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-white/80 hover:border-white/30 hover:text-white"
+          data-currency-trigger
+        >
+          <span class="text-white/60 hidden sm:inline">Currency</span>
+          <span data-currency-label>SGD</span>
+        </button>
+        <div
+          class="absolute right-0 mt-2 w-44 overflow-hidden rounded-xl border border-white/10 bg-black/90 shadow-xl backdrop-blur-sm hidden"
+          data-currency-menu
+        >
+          ${supportedCurrencies
+            .map(
+              (entry) => `
+                <button
+                  type="button"
+                  data-currency-option="${entry.code}"
+                  class="flex w-full items-center justify-between px-4 py-2 text-[0.75rem] tracking-[0.2em] text-white/80 hover:bg-white/10"
+                >
+                  <span>${entry.code}</span>
+                  <span class="text-white/50">${entry.label}</span>
+                </button>
+              `
+            )
+            .join('')}
+        </div>
+      </div>
     </nav>
 `
 
@@ -131,6 +163,8 @@ export const layout = (
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>${title}</title>
       <script src="https://cdn.tailwindcss.com"></script>
+      <script>${currencyClientScript()}</script>
+      <script>${moneyClientScript()}</script>
       ${visualFoundation}
       ${extraHead}
     </head>

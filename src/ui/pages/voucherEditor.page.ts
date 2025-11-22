@@ -187,6 +187,11 @@ export const voucherEditorPage = (payload: VouchersPagePayload) => {
         )
         const deleteSelectionInput = form.querySelector('[data-editor-delete-selection]')
         const deleteConfirmationInput = form.querySelector('[data-editor-delete-confirmation]')
+        const centsToDisplay = (value) => (value / 100).toFixed(2)
+        const resolveDiscountValue = (voucher) =>
+          voucher.voucherDiscountTypeKey === 'percentage'
+            ? voucher.discount.toFixed(2)
+            : centsToDisplay(voucher.discount)
 
         const getCurrentMode = () => (modeSelect?.value ?? 'add')
         const isEditMode = () => getCurrentMode() === 'edit'
@@ -272,11 +277,11 @@ export const voucherEditorPage = (payload: VouchersPagePayload) => {
           shopSelect && (shopSelect.value = String(voucher.shopId))
           typeSelect && (typeSelect.value = voucher.voucherTypeId ? String(voucher.voucherTypeId) : '')
           discountSelect && (discountSelect.value = String(voucher.voucherDiscountTypeId))
-          minSpendInput && (minSpendInput.value = voucher.minSpend.toFixed(2))
-          discountInput && (discountInput.value = voucher.discount.toFixed(2))
+          minSpendInput && (minSpendInput.value = centsToDisplay(voucher.minSpend))
+          discountInput && (discountInput.value = resolveDiscountValue(voucher))
           maxDiscountInput &&
             (maxDiscountInput.value =
-              typeof voucher.maxDiscount === 'number' ? voucher.maxDiscount.toFixed(2) : '')
+              typeof voucher.maxDiscount === 'number' ? centsToDisplay(voucher.maxDiscount) : '')
           markSelectionValidity(true)
           updateSubmitState()
         }

@@ -1,4 +1,4 @@
-import { escapeHtml, formatMoney, formatTimestamp } from '../domain/formatters.domain'
+import { escapeHtml, formatMoney, formatTimestamp, toCents } from '../domain/formatters.domain'
 import { recordChange } from './changeLogs.service'
 import { FieldChangeDetector, FieldCheck } from '../domain/detectors.domain'
 import { normalizeNullableText } from '../domain/normalizers.domain'
@@ -88,6 +88,23 @@ type VoucherChangeSnapshot = {
   maxDiscount: number | null
 }
 
+const normalizeMoneyFields = (
+  args: VoucherInsertArgs,
+  discountTypeKey: string
+): VoucherInsertArgs => {
+  const discountValue =
+    discountTypeKey === 'percentage' ? args.discount : toCents(args.discount)
+  return {
+    ...args,
+    minSpend: toCents(args.minSpend),
+    discount: discountValue,
+    maxDiscount:
+      args.maxDiscount === null || typeof args.maxDiscount === 'undefined'
+        ? null
+        : toCents(args.maxDiscount),
+  }
+}
+
 const voucherChangeFields: FieldCheck<VoucherChangeSnapshot, VoucherChangeSnapshot>[] = [
   { existingKey: 'shopId', incomingKey: 'shopId' },
   { existingKey: 'voucherTypeId', incomingKey: 'voucherTypeId' },
@@ -166,8 +183,8 @@ const sanitizeVoucherSummary = (entry: VoucherSummary): VoucherListItem => {
     discountDisplay,
     maxDiscount: entry.maxDiscount,
     maxDiscountDisplay,
-    createdAt: formatTimestamp(entry.createdAt),
-    createdAtRaw: new Date(entry.createdAt),
+    createdAt: formatTimestamp(entry.createdAt ?? null),
+    createdAtRaw: new Date(entry.createdAt ?? 0),
   }
 }
 
@@ -236,7 +253,7 @@ export async function getVouchersPagePayload(
       ? sortByString(filtered, (voucher) => voucher.shopName, sortOption.endsWith('desc') ? 'desc' : 'asc')
       : [...filtered].sort((a, b) => {
           const dir = sortOption === 'date-asc' ? 1 : -1
-          return (voucher.createdAtRaw.getTime() - b.createdAtRaw.getTime()) * dir
+          return (a.createdAtRaw.getTime() - b.createdAtRaw.getTime()) * dir
         })
 
   return {
@@ -267,8 +284,10 @@ export async function createVoucher(args: VoucherInsertArgs): Promise<VoucherCre
     return { status: 400, message: (error as Error).message }
   }
 
+  const normalizedArgs = normalizeMoneyFields(args, resolved.voucherDiscountType.key)
+
   try {
-    await insertVoucher(args)
+    await insertVoucher(normalizedArgs)
   } catch (error) {
     console.error('Unable to insert voucher', error)
     return { status: 500, message: 'Unable to save voucher.' }
@@ -280,12 +299,12 @@ export async function createVoucher(args: VoucherInsertArgs): Promise<VoucherCre
       action: 'INSERT',
       description: `Voucher for ${resolved.shop.name} (${resolved.voucherDiscountType.label} / ${resolved.voucherType.name}) created`,
       payload: {
-        shopId: args.shopId,
-        voucherDiscountTypeId: args.voucherDiscountTypeId,
-        voucherTypeId: args.voucherTypeId,
-        minSpend: args.minSpend,
-        discount: args.discount,
-        maxDiscount: args.maxDiscount,
+        shopId: normalizedArgs.shopId,
+        voucherDiscountTypeId: normalizedArgs.voucherDiscountTypeId,
+        voucherTypeId: normalizedArgs.voucherTypeId,
+        minSpend: normalizedArgs.minSpend,
+        discount: normalizedArgs.discount,
+        maxDiscount: normalizedArgs.maxDiscount,
       },
       source: 'vouchers/create',
     })
@@ -323,6 +342,8 @@ export async function updateVoucherDetails({
     return { status: 400, message: (error as Error).message }
   }
 
+  const normalizedArgs = normalizeMoneyFields(args, resolved.voucherDiscountType.key)
+
   const existing = await getVoucherById(id)
   if (!existing) {
     return { status: 404, message: 'Voucher not found.' }
@@ -337,19 +358,19 @@ export async function updateVoucherDetails({
     maxDiscount: existing.maxDiscount ?? null,
   }
   const normalizedIncomingVoucher: VoucherChangeSnapshot = {
-    shopId: args.shopId,
-    voucherTypeId: args.voucherTypeId ?? null,
-    voucherDiscountTypeId: args.voucherDiscountTypeId,
-    minSpend: args.minSpend,
-    discount: args.discount,
-    maxDiscount: args.maxDiscount ?? null,
+    shopId: normalizedArgs.shopId,
+    voucherTypeId: normalizedArgs.voucherTypeId ?? null,
+    voucherDiscountTypeId: normalizedArgs.voucherDiscountTypeId,
+    minSpend: normalizedArgs.minSpend,
+    discount: normalizedArgs.discount,
+    maxDiscount: normalizedArgs.maxDiscount ?? null,
   }
   const hasChanges = voucherHasChanges(normalizedExistingVoucher, normalizedIncomingVoucher)
   if (!hasChanges) {
     return { status: 200, message: 'No changes detected.' }
   }
 
-  const updated = await updateVoucherRow({ id, ...args })
+  const updated = await updateVoucherRow({ id, ...normalizedArgs })
   if (!updated) {
     return { status: 404, message: 'Voucher not found.' }
   }
@@ -361,7 +382,7 @@ export async function updateVoucherDetails({
       description: `Voucher #${id} updated for ${resolved.shop.name} (${resolved.voucherDiscountType.label} / ${resolved.voucherType.name})`,
       payload: {
         id,
-        ...args,
+        ...normalizedArgs,
       },
       source: 'vouchers/update',
     })

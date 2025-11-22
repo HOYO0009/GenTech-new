@@ -15,15 +15,27 @@ const renderVoucherCard = (voucher: VoucherListItem) => {
       <div class="grid gap-3 text-sm sm:grid-cols-3">
         <div>
           <p class="text-xs uppercase tracking-[0.35em] text-white/50">Min spend</p>
-          <p class="text-base font-semibold text-white">${voucher.minSpendDisplay}</p>
+          <p
+            class="text-base font-semibold text-white"
+            data-money-cents="${voucher.minSpend}"
+            data-money-base="SGD"
+          >${voucher.minSpendDisplay}</p>
         </div>
         <div>
           <p class="text-xs uppercase tracking-[0.35em] text-white/50">Discount</p>
-          <p class="text-base font-semibold text-white">${voucher.discountDisplay}</p>
+          <p
+            class="text-base font-semibold text-white"
+            ${voucher.voucherDiscountTypeKey === 'percentage' ? '' : `data-money-cents="${voucher.discount}" data-money-base="SGD"`}
+          >
+            ${voucher.discountDisplay}
+          </p>
         </div>
         <div>
           <p class="text-xs uppercase tracking-[0.35em] text-white/50">Max discount</p>
-          <p class="text-base font-semibold text-white">${voucher.maxDiscountDisplay}</p>
+          <p
+            class="text-base font-semibold text-white"
+            ${voucher.maxDiscount !== null ? `data-money-cents="${voucher.maxDiscount}" data-money-base="SGD"` : ''}
+          >${voucher.maxDiscountDisplay}</p>
         </div>
       </div>
     </article>`

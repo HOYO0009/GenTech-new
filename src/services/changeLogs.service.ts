@@ -1,5 +1,5 @@
 import { formatTimestamp, escapeHtml, prettyPayload } from '../domain/formatters.domain'
-import { ChangeLogEntry, listRecentChanges, logDatabaseChange } from '../db/changeLogs.db'
+import { ChangeLogEntry, listRecentChanges, logDatabaseChange, LogPayload } from '../db/changeLogs.db'
 
 export interface ChangeLogEvent {
   id: ChangeLogEntry['id']
@@ -29,8 +29,6 @@ export async function listChangeEvents(limit = 40): Promise<ChangeLogEvent[]> {
     }
   })
 }
-
-export type { LogPayload } from '../db/changeLogs.db'
 
 export async function recordChange(entry: LogPayload) {
   await logDatabaseChange(entry)

@@ -5,13 +5,15 @@ export const settingsPage = () => {
   const form = `<section class="rounded-2xl border border-white/10 bg-black/70 p-6 space-y-6">
       <div>
         <p class="text-sm uppercase tracking-[0.3em] text-white/70">Keyboard Shortcuts</p>
-        <p class="text-[0.75rem] text-white/60">Customize the keys for search focus, opening sort/filter, and opening the editor.</p>
+        <p class="text-[0.75rem] text-white/60">Customize the keys for search focus, opening sort/filter, opening the editor, and tab navigation.</p>
       </div>
       <form id="shortcut-form" class="space-y-4 max-w-md">
         ${[
           { key: 'search', label: 'Search focus', description: 'Focus the page search bar' },
           { key: 'sidebar', label: 'Sort & Filter', description: 'Open the sort/filter sidebar' },
           { key: 'editor', label: 'Open editor', description: 'Click the page editor button' },
+          { key: 'nextTab', label: 'Next tab', description: 'Move to the next navigation tab' },
+          { key: 'prevTab', label: 'Previous tab', description: 'Move to the previous navigation tab' },
         ]
           .map(
             ({ key, label, description }) => `
@@ -25,7 +27,7 @@ export const settingsPage = () => {
                 name="${key}"
                 data-shortcut-input="${key}"
                 class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-                maxlength="2"
+                maxlength="20"
               />
             </label>`
           )
@@ -70,6 +72,8 @@ export const settingsPage = () => {
             search: (formData.get('search') ?? '').toString(),
             sidebar: (formData.get('sidebar') ?? '').toString(),
             editor: (formData.get('editor') ?? '').toString(),
+            nextTab: (formData.get('nextTab') ?? '').toString(),
+            prevTab: (formData.get('prevTab') ?? '').toString(),
           }
           const saved = api.saveConfig(config)
           applyValues(saved)

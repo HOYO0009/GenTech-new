@@ -19,7 +19,17 @@ export const productPage = (
 
   const productCards = products.length
     ? products
-        .map(({ sku, name, statusName, costDisplay, supplierName, supplierLink, purchaseRemarks }) => {
+        .map(
+          ({
+            sku,
+            name,
+            statusName,
+            costDisplay,
+            costCents,
+            supplierName,
+            supplierLink,
+            purchaseRemarks,
+          }) => {
           const supplierLabel = supplierName ? supplierName : 'Unassigned'
           const supplierMarkup = supplierLink
             ? `<a class="text-base font-semibold text-red-300 hover:text-white" href="${supplierLink}" target="_blank" rel="noreferrer">${supplierLabel}</a>`
@@ -39,7 +49,10 @@ export const productPage = (
           <div class="grid gap-3 text-sm sm:grid-cols-2">
             <div>
               <p class="text-[0.65rem] uppercase tracking-[0.3em] text-white/50">Cost</p>
-              <p class="text-base font-semibold text-white">${costDisplay}</p>
+              <p
+                class="text-base font-semibold text-white"
+                ${costDisplay !== 'N/A' && typeof costCents === 'number' ? `data-money-cents="${costCents}" data-money-base="SGD"` : ''}
+              >${costDisplay}</p>
             </div>
             <div>
               <p class="text-[0.65rem] uppercase tracking-[0.3em] text-white/50">Supplier</p>
