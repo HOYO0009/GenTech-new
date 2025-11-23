@@ -71,7 +71,7 @@ export async function deleteWithConfirmation<TExisting, TIdentifier>({
     : expectation
 
   console.log('[deleteWithConfirmation] Normalized confirmation:', trimmedConfirmation)
-  if (!matchesNormalized(trimmedConfirmation, expectation)) {
+  if (!matchesNormalized(trimmedConfirmation, expectation, true)) {
     console.log('[deleteWithConfirmation] Confirmation mismatch!')
     const hint = normalizeOptionalString(expectedString)
       ? ` Please type "${escapeHtml(expectedString)}" to confirm.`

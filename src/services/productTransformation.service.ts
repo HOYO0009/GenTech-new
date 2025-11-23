@@ -4,7 +4,9 @@ import { createSanitizer } from '../domain/sanitizers.domain'
 
 export interface ProductCard {
   sku: string
+  skuRaw: string
   name: string
+  nameRaw: string
   statusId: number
   statusName: string
   costDisplay: string
@@ -31,7 +33,9 @@ export class ProductTransformationService {
     const sanitizedSupplierLink = product.supplierLink ? escape(product.supplierLink) : null
     return {
       sku: escape(product.sku),
+      skuRaw: product.sku,
       name: escape(product.name),
+      nameRaw: product.name,
       statusId: product.statusId,
       statusName: escape(product.statusName),
       costDisplay: formatMoney(product.cost),

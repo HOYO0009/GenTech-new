@@ -6,6 +6,14 @@
 export interface ServiceResult {
   status: 200 | 400 | 404 | 500
   message: string
+  /**
+   * Optional subject of the action (e.g., SKU or voucher label)
+   */
+  subject?: string
+  /**
+   * Optional list of details (e.g., changed fields)
+   */
+  details?: string[]
 }
 
 export type CreateResult = ServiceResult

@@ -152,7 +152,7 @@ export const renderFilterSidebar = (options: FilterSidebarOptions): string => {
  * Helper to create sort section configuration
  */
 export const createSortSection = (
-  options: FilterOption[],
+  options: Array<{ label: string; value: string | number }>,
   currentSort: string,
   name: string = 'sort'
 ): FilterSection => ({

@@ -4,7 +4,7 @@ import {
   VoucherTypeSummary,
   VoucherSummary,
 } from '../db/vouchers.db'
-import { formatMoney, formatTimestamp, escapeHtml } from '../domain/formatters.domain'
+import { formatMoney, formatTimestamp, escapeHtml, formatPercentageFromBasisPoints } from '../domain/formatters.domain'
 import { createSanitizer } from '../domain/sanitizers.domain'
 
 export interface ShopOption {
@@ -72,7 +72,7 @@ export class VoucherTransformationService {
     const voucherCategoryLabel = entry.voucherTypeName ? escapeHtml(entry.voucherTypeName) : 'Uncategorized'
     const discountDisplay =
       voucherDiscountTypeKey === 'percentage'
-        ? `${entry.discount.toFixed(2)}%`
+        ? formatPercentageFromBasisPoints(entry.discount)
         : formatMoney(entry.discount)
     const maxDiscountDisplay = entry.maxDiscount !== null ? formatMoney(entry.maxDiscount) : 'None'
 

@@ -1,4 +1,5 @@
 import { IVoucherRepository } from './voucher.repository.interface'
+import { DbClient } from '../db/connection.db'
 import {
   listShops as dbListShops,
   listVoucherDiscountTypes as dbListVoucherDiscountTypes,
@@ -16,35 +17,35 @@ import {
 } from '../db/vouchers.db'
 
 export class VoucherRepository implements IVoucherRepository {
-  async listShops(): Promise<ShopSummary[]> {
-    return dbListShops()
+  async listShops(executor?: DbClient): Promise<ShopSummary[]> {
+    return dbListShops(executor)
   }
 
-  async listVoucherDiscountTypes(): Promise<VoucherDiscountTypeSummary[]> {
-    return dbListVoucherDiscountTypes()
+  async listVoucherDiscountTypes(executor?: DbClient): Promise<VoucherDiscountTypeSummary[]> {
+    return dbListVoucherDiscountTypes(executor)
   }
 
-  async listVoucherTypes(): Promise<VoucherTypeSummary[]> {
-    return dbListVoucherTypes()
+  async listVoucherTypes(executor?: DbClient): Promise<VoucherTypeSummary[]> {
+    return dbListVoucherTypes(executor)
   }
 
-  async getVoucherById(id: number): Promise<VoucherSummary | null> {
-    return dbGetVoucherById(id)
+  async getVoucherById(id: number, executor?: DbClient): Promise<VoucherSummary | null> {
+    return dbGetVoucherById(id, executor)
   }
 
-  async listRecentVouchers(limit = 10): Promise<VoucherSummary[]> {
-    return dbListRecentVouchers(limit)
+  async listRecentVouchers(limit = 10, executor?: DbClient): Promise<VoucherSummary[]> {
+    return dbListRecentVouchers(limit, executor)
   }
 
-  async insertVoucher(args: VoucherInsertArgs): Promise<void> {
-    return dbInsertVoucher(args)
+  async insertVoucher(args: VoucherInsertArgs, executor?: DbClient): Promise<void> {
+    return dbInsertVoucher(args, executor)
   }
 
-  async updateVoucher(args: VoucherInsertArgs & { id: number }): Promise<boolean> {
-    return dbUpdateVoucher(args)
+  async updateVoucher(args: VoucherInsertArgs & { id: number }, executor?: DbClient): Promise<boolean> {
+    return dbUpdateVoucher(args, executor)
   }
 
-  async deleteVoucherById(id: number): Promise<boolean> {
-    return dbDeleteVoucherById(id)
+  async deleteVoucherById(id: number, executor?: DbClient): Promise<boolean> {
+    return dbDeleteVoucherById(id, executor)
   }
 }

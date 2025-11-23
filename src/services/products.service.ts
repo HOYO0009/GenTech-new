@@ -4,6 +4,7 @@ import { normalizeNullableText } from '../domain/normalizers.domain'
 import { deleteWithConfirmation, DeleteWithConfirmationOptions } from '../domain/delete.domain'
 import { createChangeService } from '../domain/changeService.domain'
 import { ServiceResult, errorResult, successResult, ErrorMessages, SuccessMessages } from '../domain/results.domain'
+import { db } from '../db/connection.db'
 import { ProductSummary } from '../db/products.db'
 import { IProductRepository } from '../repositories/product.repository.interface'
 import { ProductRepository } from '../repositories/product.repository'
@@ -61,6 +62,16 @@ type ProductChangeSnapshot = {
   purchaseRemarks: string | null
   supplierId: number | null
   supplierLink: string | null
+}
+
+const productChangeLabels: Record<keyof ProductChangeSnapshot, string> = {
+  sku: 'SKU',
+  name: 'Name',
+  statusId: 'Status',
+  cost: 'Cost',
+  purchaseRemarks: 'Purchase remarks',
+  supplierId: 'Supplier',
+  supplierLink: 'Supplier link',
 }
 
 const productChangeFields: FieldCheck<ProductChangeSnapshot, ProductChangeSnapshot>[] = [
@@ -164,48 +175,77 @@ export class ProductService {
       supplierId,
       supplierLink: normalizedSupplierLinkValue,
     }
-    const hasChanges = productHasChanges(normalizedExistingProduct, normalizedIncomingProduct)
-    if (!hasChanges) {
+    const changeDetector = new FieldChangeDetector(normalizedExistingProduct, normalizedIncomingProduct, productChangeFields)
+    const changedFields = changeDetector.getChangedFields()
+    console.log('=== Product Update Debug ===')
+    console.log('Existing:', JSON.stringify(normalizedExistingProduct, null, 2))
+    console.log('Incoming:', JSON.stringify(normalizedIncomingProduct, null, 2))
+    console.log('Changed fields:', changedFields)
+    if (!changedFields.length) {
       return successResult(ErrorMessages.NO_CHANGES)
     }
-    const updated = await this.repository.updateProduct({
-      originalSku: trimmedOriginalSku,
-      newSku: trimmedSku,
-      name: trimmedName,
-      statusId: validStatus.id,
-      cost: costCents,
-      purchaseRemarks: normalizedRemarks || null,
-      supplierId,
-      supplierLink: normalizedSupplierLink || null,
-    })
+    let updated: boolean
+    try {
+      updated = await db.transaction(async (tx) => {
+        const success = await this.repository.updateProduct(
+          {
+            originalSku: trimmedOriginalSku,
+            newSku: trimmedSku,
+            name: trimmedName,
+            statusId: validStatus.id,
+            cost: costCents,
+            purchaseRemarks: normalizedRemarks || null,
+            supplierId,
+            supplierLink: normalizedSupplierLink || null,
+          },
+          tx
+        )
+
+        if (!success) {
+          return false
+        }
+
+        await recordChange(
+          {
+            tableName: 'products',
+            action: 'UPDATE',
+            description: `SKU ${trimmedOriginalSku} updated to "${trimmedSku}" (status ${validStatus.name})`,
+            payload: {
+              originalSku: trimmedOriginalSku,
+              sku: trimmedSku,
+              name: trimmedName,
+              statusId: validStatus.id,
+              statusName: validStatus.name,
+              cost: costCents,
+              purchaseRemarks: normalizedRemarks,
+              supplierId,
+              supplierLink: normalizedSupplierLink,
+            },
+            source: 'products/update',
+          },
+          tx
+        )
+
+        return true
+      })
+    } catch (error) {
+      console.error('Unable to save product update', error)
+      return errorResult(ErrorMessages.UNABLE_TO_SAVE('product'), 500)
+    }
 
     if (!updated) {
       return errorResult(ErrorMessages.NOT_FOUND('Product'), 404)
     }
 
-    try {
-      await recordChange({
-        tableName: 'products',
-        action: 'UPDATE',
-        description: `SKU ${trimmedOriginalSku} updated to "${trimmedSku}" (status ${validStatus.name})`,
-        payload: {
-          originalSku: trimmedOriginalSku,
-          sku: trimmedSku,
-          name: trimmedName,
-          statusId: validStatus.id,
-          statusName: validStatus.name,
-          cost: costCents,
-          purchaseRemarks: normalizedRemarks,
-          supplierId,
-          supplierLink: normalizedSupplierLink,
-        },
-        source: 'products/update',
-      })
-    } catch (error) {
-      console.error('Unable to record product change', error)
-    }
+    const changedFieldLabels = changedFields
+      .map((field) => productChangeLabels[field])
+      .filter(Boolean)
 
-    return successResult(SuccessMessages.SAVED('Product'))
+    return {
+      ...successResult(SuccessMessages.SAVED('Product')),
+      subject: `SKU ${trimmedSku}`,
+      details: changedFieldLabels,
+    }
   }
 
   async createProduct({
@@ -245,14 +285,39 @@ export class ProductService {
     const normalizedLink = normalizeNullableText(supplierLink)
 
     try {
-      await this.repository.insertProduct({
-        sku: trimmedSku,
-        name: trimmedName,
-        statusId: validStatus.id,
-        cost: costCents,
-        purchaseRemarks: normalizedRemarks ?? null,
-        supplierId,
-        supplierLink: normalizedLink ?? null,
+      await db.transaction(async (tx) => {
+        await this.repository.insertProduct(
+          {
+            sku: trimmedSku,
+            name: trimmedName,
+            statusId: validStatus.id,
+            cost: costCents,
+            purchaseRemarks: normalizedRemarks ?? null,
+            supplierId,
+            supplierLink: normalizedLink ?? null,
+          },
+          tx
+        )
+
+        await recordChange(
+          {
+            tableName: 'products',
+            action: 'INSERT',
+            description: `New product ${trimmedSku} (${trimmedName}) added`,
+            payload: {
+              sku: trimmedSku,
+              name: trimmedName,
+              statusId: validStatus.id,
+              statusName: validStatus.name,
+              cost: costCents,
+              purchaseRemarks: normalizedRemarks,
+              supplierId,
+              supplierLink: normalizedLink,
+            },
+            source: 'products/create',
+          },
+          tx
+        )
       })
     } catch (error) {
       const message = (error as Error)?.message ?? ErrorMessages.UNABLE_TO_CREATE('product')
@@ -263,27 +328,6 @@ export class ProductService {
       return errorResult(ErrorMessages.UNABLE_TO_CREATE('product'), 500)
     }
 
-    try {
-      await recordChange({
-        tableName: 'products',
-        action: 'INSERT',
-        description: `New product ${trimmedSku} (${trimmedName}) added`,
-        payload: {
-          sku: trimmedSku,
-          name: trimmedName,
-          statusId: validStatus.id,
-          statusName: validStatus.name,
-          cost: costCents,
-          purchaseRemarks: normalizedRemarks,
-          supplierId,
-          supplierLink: normalizedLink,
-        },
-        source: 'products/create',
-      })
-    } catch (error) {
-      console.error('Unable to record product change', error)
-    }
-
     return successResult('Product added.')
   }
 
@@ -292,29 +336,46 @@ export class ProductService {
     if (!trimmedSku) {
       return errorResult('SKU is required to delete.', 400)
     }
-    const options: DeleteWithConfirmationOptions<ProductSummary, string> = {
-      identifierLabel: 'SKU',
-      notFoundMessage: 'Product not found.',
-      expectedConfirmation: (product) => product.sku,
-      confirmationErrorMessage: 'Confirmation does not match the SKU.',
-      deleteEntity: async () => this.repository.deleteProductBySku(trimmedSku),
-      loadExisting: () => this.repository.getProductBySku(trimmedSku),
-      successMessage: (product) => `Product ${product.sku} deleted.`,
-      recordChange: (product) =>
-        recordChange({
-          tableName: 'products',
-          action: 'DELETE',
-          description: `Product ${product.sku} (${product.name}) was removed`,
-          payload: { sku: product.sku, name: product.name },
-          source: 'products/delete',
-        }),
+    let result: ProductDeleteResult
+    try {
+      result = await db.transaction(async (tx) => {
+        const options: DeleteWithConfirmationOptions<ProductSummary, string> = {
+          identifierLabel: 'SKU',
+          notFoundMessage: 'Product not found.',
+          expectedConfirmation: (product) => product.sku,
+          confirmationErrorMessage: 'Confirmation does not match the SKU.',
+          deleteEntity: async () => this.repository.deleteProductBySku(trimmedSku, tx),
+          loadExisting: () => this.repository.getProductBySku(trimmedSku, tx),
+          successMessage: (product) => `Product ${product.sku} deleted.`,
+          recordChange: (product) =>
+            recordChange(
+              {
+                tableName: 'products',
+                action: 'DELETE',
+                description: `Product ${product.sku} (${product.name}) was removed`,
+                payload: { sku: product.sku, name: product.name },
+                source: 'products/delete',
+              },
+              tx
+            ),
+        }
+
+        return deleteWithConfirmation({
+          identifier: trimmedSku,
+          confirmation,
+          options,
+        })
+      })
+    } catch (error) {
+      console.error('Unable to delete product', error)
+      return errorResult(ErrorMessages.UNABLE_TO_DELETE('product'), 500)
     }
 
-    return deleteWithConfirmation({
-      identifier: trimmedSku,
-      confirmation,
-      options,
-    })
+    return {
+      ...result,
+      subject: `SKU ${trimmedSku}`,
+      details: result.status === 200 ? ['Deleted'] : undefined,
+    }
   }
 }
 

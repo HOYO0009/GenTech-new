@@ -1,4 +1,5 @@
 import { IProductRepository } from './product.repository.interface'
+import { DbClient } from '../db/connection.db'
 import {
   listProducts as dbListProducts,
   getProductBySku as dbGetProductBySku,
@@ -13,16 +14,16 @@ import {
 } from '../db/products.db'
 
 export class ProductRepository implements IProductRepository {
-  async listProducts(): Promise<ProductSummary[]> {
-    return dbListProducts()
+  async listProducts(executor?: DbClient): Promise<ProductSummary[]> {
+    return dbListProducts(executor)
   }
 
-  async getProductBySku(sku: string): Promise<ProductSummary | null> {
-    return dbGetProductBySku(sku)
+  async getProductBySku(sku: string, executor?: DbClient): Promise<ProductSummary | null> {
+    return dbGetProductBySku(sku, executor)
   }
 
-  async getProductByName(name: string): Promise<ProductSummary | null> {
-    return dbGetProductByName(name)
+  async getProductByName(name: string, executor?: DbClient): Promise<ProductSummary | null> {
+    return dbGetProductByName(name, executor)
   }
 
   async updateProduct(args: {
@@ -34,8 +35,8 @@ export class ProductRepository implements IProductRepository {
     purchaseRemarks: string | null
     supplierId: number | null
     supplierLink: string | null
-  }): Promise<boolean> {
-    return dbUpdateProduct(args)
+  }, executor?: DbClient): Promise<boolean> {
+    return dbUpdateProduct(args, executor)
   }
 
   async insertProduct(args: {
@@ -46,19 +47,19 @@ export class ProductRepository implements IProductRepository {
     purchaseRemarks: string | null
     supplierId: number | null
     supplierLink: string | null
-  }): Promise<boolean> {
-    return dbInsertProduct(args)
+  }, executor?: DbClient): Promise<boolean> {
+    return dbInsertProduct(args, executor)
   }
 
-  async deleteProductBySku(sku: string): Promise<boolean> {
-    return dbDeleteProductBySku(sku)
+  async deleteProductBySku(sku: string, executor?: DbClient): Promise<boolean> {
+    return dbDeleteProductBySku(sku, executor)
   }
 
-  async listProductStatuses(): Promise<ProductStatus[]> {
-    return dbListProductStatuses()
+  async listProductStatuses(executor?: DbClient): Promise<ProductStatus[]> {
+    return dbListProductStatuses(executor)
   }
 
-  async listSuppliers(): Promise<Array<{ id: number; name: string }>> {
-    return dbListSuppliers()
+  async listSuppliers(executor?: DbClient): Promise<Array<{ id: number; name: string }>> {
+    return dbListSuppliers(executor)
   }
 }

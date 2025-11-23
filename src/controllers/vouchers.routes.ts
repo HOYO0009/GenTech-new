@@ -7,8 +7,9 @@ import {
   VoucherCreateResult,
   type VoucherSortOption,
 } from '../services/vouchers.service'
-import { vouchersPage, renderVoucherHistorySection } from '../ui/pages/vouchers.page'
-import { voucherEditorPage } from '../ui/pages/voucherEditor.page'
+import { vouchersPage, renderVoucherHistorySection } from '../ui/pages/vouchers.page.ts'
+import { voucherAddPage } from '../ui/pages/voucherAdd.page.ts'
+import { z, ZodError } from 'zod'
 
 type ParsedVoucherFormData = {
   shopId: number
@@ -16,92 +17,182 @@ type ParsedVoucherFormData = {
   voucherDiscountTypeId: number
   minSpend: number
   discount: number
-  maxDiscount: number
+  maxDiscount: number | null
 }
 type ParsedVoucherForm = ParsedVoucherFormData & {
-  voucherId?: number
+  voucherId: number
 }
 
-const parseRequired = (entry: unknown, label: string) => {
-  const value = (entry ?? '').toString().trim()
-  if (!value) {
-    throw new Error(`${label} is required.`)
-  }
-  return value
-}
-const parseInteger = (entry: unknown, label: string) => {
-  const raw = parseRequired(entry, label)
-  const parsed = Number(raw)
-  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
-    throw new Error(`${label} must be an integer.`)
-  }
-  return parsed
-}
-const parseDecimal = (entry: unknown, label: string) => {
-  const raw = parseRequired(entry, label)
-  const parsed = Number(raw)
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`${label} must be a number.`)
-  }
-  return parsed
-}
-const parseCreateVoucherForm = (form: FormData): ParsedVoucherFormData => ({
-  shopId: parseInteger(form.get('shopId'), 'Shop'),
-  voucherTypeId: parseInteger(form.get('voucherTypeId'), 'Voucher type'),
-  voucherDiscountTypeId: parseInteger(form.get('voucherDiscountTypeId'), 'Discount type'),
-  minSpend: parseDecimal(form.get('minSpend'), 'Minimum spend'),
-  discount: parseDecimal(form.get('discount'), 'Discount'),
-  maxDiscount: parseDecimal(form.get('maxDiscount'), 'Max discount'),
+const buildToastTrigger = (
+  result: VoucherCreateResult,
+  extra?: { subject?: string; details?: string[] }
+) => ({
+  toast: {
+    status: result.status,
+    message: result.message,
+    subject: extra?.subject ?? (result as VoucherCreateResult & { subject?: string }).subject,
+    details: extra?.details ?? (result as VoucherCreateResult & { details?: string[] }).details,
+  },
 })
-const parseVoucherForm = (form: FormData): ParsedVoucherForm => {
-  const base = parseCreateVoucherForm(form)
-  const rawId = (form.get('voucherId') ?? '').toString().trim()
-  if (!rawId) {
-    return base
-  }
-  return {
-    ...base,
-    voucherId: parseInteger(rawId, 'Voucher'),
-  }
+
+const requiredInteger = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required.`)
+    .transform((value) => {
+      const parsed = Number(value)
+      if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+        throw new Error(`${label} must be an integer.`)
+      }
+      return parsed
+    })
+
+const requiredNumber = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required.`)
+    .transform((value) => {
+      const parsed = Number(value)
+      if (!Number.isFinite(parsed)) {
+        throw new Error(`${label} must be a number.`)
+      }
+      return parsed
+    })
+
+const optionalNumber = (label: string) =>
+  z
+    .string()
+    .trim()
+    .transform((value) => {
+      if (!value) return null
+      const parsed = Number(value)
+      if (!Number.isFinite(parsed)) {
+        throw new Error(`${label} must be a number.`)
+      }
+      return parsed
+    })
+
+const voucherFormSchema = z.object({
+  shopId: requiredInteger('Shop'),
+  voucherTypeId: requiredInteger('Voucher type'),
+  voucherDiscountTypeId: requiredInteger('Discount type'),
+  minSpend: requiredNumber('Minimum spend'),
+  discount: requiredNumber('Discount'),
+  maxDiscount: optionalNumber('Max discount'),
+})
+
+const voucherUpdateSchema = voucherFormSchema.extend({
+  voucherId: requiredInteger('Voucher'),
+})
+
+const parseCreateVoucherForm = (form: FormData): ParsedVoucherFormData =>
+  voucherFormSchema.parse({
+    shopId: (form.get('shopId') ?? '').toString(),
+    voucherTypeId: (form.get('voucherTypeId') ?? '').toString(),
+    voucherDiscountTypeId: (form.get('voucherDiscountTypeId') ?? '').toString(),
+    minSpend: (form.get('minSpend') ?? '').toString(),
+    discount: (form.get('discount') ?? '').toString(),
+    maxDiscount: (form.get('maxDiscount') ?? '').toString(),
+  })
+
+const parseVoucherForm = (form: FormData): ParsedVoucherForm =>
+  voucherUpdateSchema.parse({
+    voucherId: (form.get('voucherId') ?? '').toString(),
+    shopId: (form.get('shopId') ?? '').toString(),
+    voucherTypeId: (form.get('voucherTypeId') ?? '').toString(),
+    voucherDiscountTypeId: (form.get('voucherDiscountTypeId') ?? '').toString(),
+    minSpend: (form.get('minSpend') ?? '').toString(),
+    discount: (form.get('discount') ?? '').toString(),
+    maxDiscount: (form.get('maxDiscount') ?? '').toString(),
+  })
+
+const parseErrorMessage = (error: unknown, fallback = 'Invalid input.') =>
+  error instanceof ZodError ? error.errors[0]?.message ?? fallback : (error as Error).message
+
+const buildVoucherFeedbackHtml = (result: VoucherCreateResult) => {
+  const textColor = result.status === 200 ? 'text-emerald-300' : 'text-amber-400'
+  const feedbackStatus = result.status === 200 ? 'success' : 'error'
+  return `<div class="px-3 py-2 ${textColor}" data-inline-feedback-status="${feedbackStatus}">${result.message}</div>`
 }
 
-const respondWithVoucherHistorySection = async (c: Context, result: VoucherCreateResult) => {
-  const payload = await getVouchersPagePayload()
+const voucherMessageClass = (result: VoucherCreateResult) => {
   const textColor = result.status === 200 ? 'text-emerald-300' : 'text-amber-400'
-  const messageClass = `px-3 py-2 text-[0.65rem] uppercase tracking-[0.35em] ${textColor}`
-  const messageHtml = `<div class="${messageClass}">${result.message}</div>`
-  const historySection = renderVoucherHistorySection(payload.vouchers, result.message, messageClass)
-  const isHxRequest = c.req.header('HX-Request') === 'true'
-  const httpStatus = isHxRequest ? 200 : result.status
-  if (isHxRequest) {
-    // Provide inline feedback for the editor while still updating voucher history out-of-band.
-    return c.html(`${messageHtml}${historySection}`, httpStatus)
+  return `px-3 py-2 text-[0.65rem] uppercase tracking-[0.35em] ${textColor}`
+}
+
+const respondWithVoucherHistorySection = async (
+  c: Context,
+  result: VoucherCreateResult,
+  inlineCardId?: string
+) => {
+  const payload = await getVouchersPagePayload()
+  const messageClass = voucherMessageClass(result)
+  if (c.req.header('HX-Request') === 'true' && result.status === 200) {
+    const triggerDetail = inlineCardId ? { cardId: inlineCardId } : true
+    c.header(
+      'HX-Trigger',
+      JSON.stringify({
+        ...buildToastTrigger(result),
+        'inline-panel-close': triggerDetail,
+      })
+    )
   }
-  return c.html(
-    vouchersPage(payload, result.message, messageClass),
-    httpStatus
+  const historySection = renderVoucherHistorySection(
+    payload.vouchers,
+    {
+      shops: payload.shops,
+      voucherDiscountTypes: payload.voucherDiscountTypes,
+      voucherTypes: payload.voucherTypes,
+    },
+    result.message,
+    messageClass
   )
+  const isHxRequest = c.req.header('HX-Request') === 'true'
+  const httpStatus = result.status
+  if (isHxRequest) {
+    const triggers =
+      result.status === 200
+        ? {
+            ...buildToastTrigger(result),
+            ...(inlineCardId ? { 'inline-panel-close': { cardId: inlineCardId } } : { 'inline-panel-close': true }),
+          }
+        : buildToastTrigger(result)
+    c.header('HX-Trigger', JSON.stringify(triggers))
+    c.header('HX-Retarget', '#voucher-history-section')
+    return c.html(historySection, httpStatus)
+  }
+  return c.html(vouchersPage(payload, result.message, messageClass), httpStatus)
 }
 
 const respondWithVoucherFeedback = async (
   c: Context,
   result: VoucherCreateResult,
-  hxRedirect?: string
+  hxRedirect?: string,
+  inlineCardId?: string
 ) => {
-  const textColor = result.status === 200 ? 'text-emerald-300' : 'text-amber-400'
-  const messageHtml = `<div class="px-3 py-2 ${textColor}">${result.message}</div>`
+  const messageHtml = buildVoucherFeedbackHtml(result)
   const isHxRequest = c.req.header('HX-Request') === 'true'
-  const httpStatus = isHxRequest ? 200 : result.status
+  const httpStatus = result.status
   if (isHxRequest) {
+    const triggers =
+      result.status === 200
+        ? {
+            ...buildToastTrigger(result),
+            ...(inlineCardId ? { 'inline-panel-close': { cardId: inlineCardId } } : { 'inline-panel-close': true }),
+          }
+        : buildToastTrigger(result)
+    c.header('HX-Trigger', JSON.stringify(triggers))
     if (result.status === 200 && hxRedirect) {
       c.header('HX-Redirect', hxRedirect)
       return c.html('', httpStatus)
     }
-    return c.html(messageHtml, httpStatus)
+    return c.html('', httpStatus)
   }
   const payload = await getVouchersPagePayload()
   return c.html(
-    vouchersPage(payload, result.message, `text-sm uppercase tracking-[0.3em] ${textColor}`),
+    vouchersPage(payload, result.message, voucherMessageClass(result)),
     httpStatus
   )
 }
@@ -120,35 +211,124 @@ export const registerVoucherRoutes = (app: Hono) => {
 
   app.get('/vouchers/manage', async (c) => {
     const payload = await getVouchersPagePayload()
-    return c.html(voucherEditorPage(payload))
+    return c.html(voucherAddPage(payload))
   })
 
-  app.post('/vouchers/save', async (c) => {
+  app.post('/vouchers/create', async (c) => {
     const form = await c.req.formData()
+    const inlineCardId = (form.get('inlineCardId') ?? '').toString().trim() || undefined
+    let parsed: ParsedVoucherFormData
+    try {
+      parsed = parseCreateVoucherForm(form)
+    } catch (error) {
+      return respondWithVoucherFeedback(
+        c,
+        { status: 400, message: parseErrorMessage(error) },
+        undefined,
+        inlineCardId
+      )
+    }
+    const result = await createVoucher(parsed)
+    return respondWithVoucherFeedback(c, result, '/vouchers', inlineCardId)
+  })
+
+  app.post('/vouchers/update', async (c) => {
+    const form = await c.req.formData()
+    const inlineCardId = (form.get('inlineCardId') ?? '').toString().trim() || undefined
     let parsed
     try {
       parsed = parseVoucherForm(form)
     } catch (error) {
-      return respondWithVoucherFeedback(c, { status: 400, message: (error as Error).message })
+      return respondWithVoucherFeedback(
+        c,
+        { status: 400, message: parseErrorMessage(error) },
+        undefined,
+        inlineCardId
+      )
     }
     const { voucherId, ...rest } = parsed
-    const result = voucherId
-      ? await updateVoucherDetails({ id: voucherId, ...rest })
-      : await createVoucher(rest)
-    const redirect = voucherId ? undefined : '/vouchers'
-    return respondWithVoucherFeedback(c, result, redirect)
+    const result = await updateVoucherDetails({ id: voucherId, ...rest })
+    const isHxRequest = c.req.header('HX-Request') === 'true'
+    if (isHxRequest && inlineCardId) {
+      if (result.status === 200) {
+        const payload = await getVouchersPagePayload()
+        const triggerDetail = inlineCardId ? { cardId: inlineCardId } : true
+        c.header(
+          'HX-Trigger',
+          JSON.stringify({
+            ...buildToastTrigger(result),
+            'inline-panel-close': triggerDetail,
+          })
+        )
+        c.header('HX-Retarget', '#voucher-history-section')
+        const historySection = renderVoucherHistorySection(
+          payload.vouchers,
+          {
+            shops: payload.shops,
+            voucherDiscountTypes: payload.voucherDiscountTypes,
+            voucherTypes: payload.voucherTypes,
+          },
+          result.message,
+          voucherMessageClass(result)
+        )
+        return c.html(historySection, result.status)
+      }
+      const feedbackId = `${inlineCardId}-edit-feedback`
+      c.header('HX-Retarget', `#${feedbackId}`)
+      c.header('HX-Trigger', JSON.stringify(buildToastTrigger(result)))
+      return c.html('', result.status)
+    }
+    return respondWithVoucherFeedback(c, result, undefined, inlineCardId)
   })
 
   app.post('/vouchers/delete', async (c) => {
     const form = await c.req.formData()
     const idParam = (form.get('voucherId') ?? '').toString().trim()
+    const inlineCardId = (form.get('inlineCardId') ?? '').toString().trim() || undefined
     const confirmation = (form.get('confirmation') ?? '').toString().trim()
     const parsedId = Number(idParam)
     if (!Number.isFinite(parsedId) || !Number.isInteger(parsedId) || parsedId <= 0) {
-      return respondWithVoucherHistorySection(c, { status: 400, message: 'Invalid voucher selection.' })
+      const errorResult = { status: 400, message: 'Invalid voucher selection.' } as VoucherCreateResult
+      if (c.req.header('HX-Request') === 'true' && inlineCardId) {
+        const feedbackId = `${inlineCardId}-delete-feedback`
+        c.header('HX-Retarget', `#${feedbackId}`)
+        c.header('HX-Trigger', JSON.stringify(buildToastTrigger(errorResult)))
+        return c.html('', errorResult.status)
+      }
+      return respondWithVoucherHistorySection(c, errorResult, inlineCardId)
     }
     const result = await deleteVoucherRecordWithConfirmation(parsedId, confirmation)
-    return respondWithVoucherHistorySection(c, result)
+    const isHxRequest = c.req.header('HX-Request') === 'true'
+    if (isHxRequest && inlineCardId) {
+      if (result.status === 200) {
+        const payload = await getVouchersPagePayload()
+        const triggerDetail = inlineCardId ? { cardId: inlineCardId } : true
+        c.header(
+          'HX-Trigger',
+          JSON.stringify({
+            ...buildToastTrigger(result),
+            'inline-panel-close': triggerDetail,
+          })
+        )
+        c.header('HX-Retarget', '#voucher-history-section')
+        const historySection = renderVoucherHistorySection(
+          payload.vouchers,
+          {
+            shops: payload.shops,
+            voucherDiscountTypes: payload.voucherDiscountTypes,
+            voucherTypes: payload.voucherTypes,
+          },
+          result.message,
+          voucherMessageClass(result)
+        )
+        return c.html(historySection, result.status)
+      }
+      const feedbackId = `${inlineCardId}-delete-feedback`
+      c.header('HX-Retarget', `#${feedbackId}`)
+      c.header('HX-Trigger', JSON.stringify(buildToastTrigger(result)))
+      return c.html('', result.status)
+    }
+    return respondWithVoucherHistorySection(c, result, inlineCardId)
   })
 
 }

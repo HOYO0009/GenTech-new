@@ -68,11 +68,11 @@ export const productPricing = sqliteTable('product_pricing', {
   productSku: text('product_sku').notNull().references(() => products.sku),
   shopId: integer('shop_id').notNull().references(() => shops.id),
   moq: integer('moq'),
-  sellPrice: real('sell_price'),
-  actualSellPrice: real('actual_sell_price'),
+  sellPrice: integer('sell_price'), // cents
+  actualSellPrice: integer('actual_sell_price'), // cents
   minAdRoas: real('min_ad_roas'),
   maxAff: real('max_aff'),
-  competitorPrice: real('competitor_price'),
+  competitorPrice: integer('competitor_price'), // cents
   competitorLink: text('competitor_link'),
 })
 
@@ -92,9 +92,9 @@ export const voucherTypes = sqliteTable('voucher_types', {
 export const vouchers = sqliteTable('vouchers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   shopId: integer('shop_id').notNull().references(() => shops.id),
-  minSpend: real('min_spend').notNull(),
-  discount: real('discount').notNull(),
-  maxDiscount: real('max_discount'),
+  minSpend: integer('min_spend').notNull(), // cents
+  discount: integer('discount').notNull(), // cents or basis points (see discount type)
+  maxDiscount: integer('max_discount'), // cents
   voucherDiscountTypeId: integer('voucher_discount_type_id')
     .notNull()
     .default(1)

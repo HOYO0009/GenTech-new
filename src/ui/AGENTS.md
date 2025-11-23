@@ -9,7 +9,7 @@
 ```
 ui/
 - layout.ui.ts          # Shared shell, nav, and client-side helpers
-- pages/                # Page-level renderers (e.g. `productEditor.page.ts`)
+- pages/                # Page-level renderers (e.g. `productAdd.page.ts`)
 - templates/            # Reusable HTML fragments
 - styles/               # Tailwind/inline style helpers
 ```
@@ -22,7 +22,7 @@ ui/
 
 - Render HTML strings for routes using HTMX/Alpine-friendly markup.
 - Keep UI purely presentational: accept formatted data from services, no DB calls.
-- Apply project palette/typography (primary `#b41f26` → `#ff2b2b`, background `#010101`, text `#f7f4f0`).
+- Apply project palette/typography (primary `#b41f26` -> `#ff2b2b`, background `#010101`, text `#f7f4f0`).
 - Keep components mobile-friendly and minimal JS (prefer HTMX/Alpine attributes).
 
 **Avoid:** Business logic, data fetching, currency math, or schema validation here.

@@ -1,7 +1,8 @@
 import { layout } from '../layout.ui'
+import { uiClasses } from '../styles/classes.ui'
 
 export const settingsPage = () => {
-  const form = `<section class="rounded-2xl border border-white/10 bg-black/70 p-6 space-y-6">
+  const form = `<section class="${uiClasses.panel.base} space-y-6">
       <div>
         <p class="text-sm uppercase tracking-[0.3em] text-white/70">Keyboard Shortcuts</p>
         <p class="text-[0.75rem] text-white/60">Customize the keys for search focus, opening sort/filter, opening the editor, and tab navigation.</p>
@@ -17,7 +18,7 @@ export const settingsPage = () => {
           .map(
             ({ key, label, description }) => `
             <label class="block space-y-2">
-              <div class="flex items-center justify-between">
+              <div class="${uiClasses.layout.flex.between}">
                 <span class="text-[0.8rem] uppercase tracking-[0.25em] text-white/80">${label}</span>
                 <span class="text-[0.65rem] uppercase tracking-[0.25em] text-white/50">${description}</span>
               </div>
@@ -25,7 +26,7 @@ export const settingsPage = () => {
                 type="text"
                 name="${key}"
                 data-shortcut-input="${key}"
-                class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+                class="${uiClasses.input.base}"
                 maxlength="20"
               />
             </label>`

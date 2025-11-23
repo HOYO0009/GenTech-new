@@ -19,15 +19,27 @@ export class FieldChangeDetector<TExisting, TIncoming> implements ChangeDetector
     private checks: FieldCheck<TExisting, TIncoming>[]
   ) {}
 
+  private isEqual(existingValue: unknown, incomingValue: unknown, comparator?: FieldComparator) {
+    return comparator ? comparator(existingValue, incomingValue) : Object.is(existingValue, incomingValue)
+  }
+
+  getChangedFields(): Array<keyof TExisting> {
+    return this.checks
+      .map(({ existingKey, incomingKey, comparator }) => {
+        const existingValue = (this.existing as Record<string, unknown>)[existingKey as string]
+        const incomingValue = (this.incoming as Record<string, unknown>)[incomingKey as string]
+        const equals = this.isEqual(existingValue, incomingValue, comparator)
+        if (!equals) {
+          console.log(`  Field '${String(existingKey)}' changed:`, { existing: existingValue, incoming: incomingValue })
+          return existingKey
+        }
+        return null
+      })
+      .filter((key): key is keyof TExisting => Boolean(key))
+  }
+
   hasChanges() {
-    return this.checks.some(({ existingKey, incomingKey, comparator }) => {
-      const existingValue = (this.existing as Record<string, unknown>)[existingKey as string]
-      const incomingValue = (this.incoming as Record<string, unknown>)[incomingKey as string]
-      const equals = comparator
-        ? comparator(existingValue, incomingValue)
-        : Object.is(existingValue, incomingValue)
-      return !equals
-    })
+    return this.getChangedFields().length > 0
   }
 }
 

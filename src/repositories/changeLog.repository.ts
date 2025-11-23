@@ -5,13 +5,14 @@ import {
   ChangeLogEntry,
   LogPayload,
 } from '../db/changeLogs.db'
+import { DbClient } from '../db/connection.db'
 
 export class ChangeLogRepository implements IChangeLogRepository {
   async listRecentChanges(limit = 40): Promise<ChangeLogEntry[]> {
     return dbListRecentChanges(limit)
   }
 
-  async logDatabaseChange(entry: LogPayload): Promise<void> {
-    return dbLogDatabaseChange(entry)
+  async logDatabaseChange(entry: LogPayload, executor?: DbClient): Promise<void> {
+    return dbLogDatabaseChange(entry, executor)
   }
 }

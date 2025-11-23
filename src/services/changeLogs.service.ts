@@ -2,6 +2,7 @@ import { formatTimestamp, escapeHtml, prettyPayload } from '../domain/formatters
 import { ChangeLogEntry, LogPayload } from '../db/changeLogs.db'
 import { IChangeLogRepository } from '../repositories/changeLog.repository.interface'
 import { ChangeLogRepository } from '../repositories/changeLog.repository'
+import { DbClient } from '../db/connection.db'
 
 export interface ChangeLogEvent {
   id: ChangeLogEntry['id']
@@ -35,8 +36,8 @@ export class ChangeLogsService {
     })
   }
 
-  async recordChange(entry: LogPayload): Promise<void> {
-    await this.repository.logDatabaseChange(entry)
+  async recordChange(entry: LogPayload, executor?: DbClient): Promise<void> {
+    await this.repository.logDatabaseChange(entry, executor)
   }
 }
 
@@ -46,6 +47,6 @@ export async function listChangeEvents(limit = 40): Promise<ChangeLogEvent[]> {
   return defaultChangeLogsService.listChangeEvents(limit)
 }
 
-export async function recordChange(entry: LogPayload): Promise<void> {
-  return defaultChangeLogsService.recordChange(entry)
+export async function recordChange(entry: LogPayload, executor?: DbClient): Promise<void> {
+  return defaultChangeLogsService.recordChange(entry, executor)
 }

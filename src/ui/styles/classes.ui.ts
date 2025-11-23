@@ -8,19 +8,19 @@ export const uiClasses = {
    * Card styles - Used for content containers
    */
   card: {
-    base: 'rounded-2xl border border-white/10 bg-black/70 p-5 space-y-3',
+    base: 'rounded-2xl border border-white/10 bg-black/70 p-4 sm:p-5 space-y-3',
     withShadow:
-      'rounded-2xl border border-white/10 bg-black/70 p-5 space-y-3 shadow-[0_0_30px_rgba(0,0,0,0.35)]',
-    compact: 'rounded-xl border border-white/10 bg-black/70 p-4 space-y-2',
+      'rounded-2xl border border-white/10 bg-black/70 p-4 sm:p-5 space-y-3 shadow-[0_0_30px_rgba(0,0,0,0.35)]',
+    compact: 'rounded-xl border border-white/10 bg-black/70 p-3 sm:p-4 space-y-2',
   },
 
   /**
    * Panel styles - Used for sections and containers
    */
   panel: {
-    base: 'rounded-2xl border border-white/10 bg-black/70 p-6 space-y-4',
-    compact: 'rounded-2xl border border-white/10 bg-black/70 p-4 space-y-3',
-    inner: 'bg-black/70 rounded-2xl border border-white/10 shadow-inner p-6 space-y-5',
+    base: 'rounded-2xl border border-white/10 bg-black/70 p-5 sm:p-6 space-y-4',
+    compact: 'rounded-2xl border border-white/10 bg-black/70 p-4 sm:p-5 space-y-3',
+    inner: 'bg-black/70 rounded-2xl border border-white/10 shadow-inner p-5 sm:p-6 space-y-5',
   },
 
   /**
@@ -54,6 +54,8 @@ export const uiClasses = {
       'w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-white hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40',
     secondaryCompact:
       'rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-white hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40',
+    dangerCompact:
+      'rounded-lg border border-[#ff2b2b]/50 bg-[#b41f26] px-4 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-white shadow-[0_0_0_1px_rgba(255,43,43,0.25)] hover:bg-[#ff2b2b] hover:border-white/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff2b2b]/50',
     ghost:
       'text-sm font-semibold uppercase tracking-[0.25em] text-white/70 hover:text-white focus:outline-none',
   },
@@ -77,20 +79,21 @@ export const uiClasses = {
    */
   layout: {
     grid: {
-      cols2: 'grid gap-3 text-sm sm:grid-cols-2',
-      cols3: 'grid gap-3 text-sm sm:grid-cols-3',
+      cols2: 'grid gap-3 sm:gap-4 text-sm sm:grid-cols-2',
+      cols3: 'grid gap-3 sm:gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3',
       searchControls: 'grid gap-3 md:grid-cols-[2fr_auto_auto] items-end w-full',
       searchControlsSection: 'grid gap-4 md:grid-cols-[2fr_auto_auto] items-center',
     },
     flex: {
-      between: 'flex items-center justify-between',
-      betweenStart: 'flex items-start justify-between',
+      between: 'flex flex-wrap items-center justify-between gap-3',
+      betweenStart: 'flex flex-wrap items-start justify-between gap-3',
       center: 'flex items-center justify-center',
-      gap2: 'flex items-center gap-2',
-      gap3: 'flex items-center gap-3',
-      gap4: 'flex items-center gap-4',
+      gap2: 'flex flex-wrap items-center gap-2',
+      gap3: 'flex flex-wrap items-center gap-3',
+      gap4: 'flex flex-wrap items-center gap-4',
     },
     space: {
+      y1: 'space-y-1',
       y2: 'space-y-2',
       y3: 'space-y-3',
       y4: 'space-y-4',

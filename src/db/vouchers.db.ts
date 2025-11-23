@@ -1,32 +1,24 @@
 import { eq, desc } from 'drizzle-orm'
-import { db } from './connection.db'
+import { db, DbClient } from './connection.db'
 import { shops, voucherTypes, voucherDiscountTypes, vouchers } from './schema.db'
 
-export type ShopSummary = {
-  id: number
-  code: string
-  name: string
-}
+export type Voucher = typeof vouchers.$inferSelect
+export type NewVoucher = typeof vouchers.$inferInsert
+type ShopRow = typeof shops.$inferSelect
+type VoucherDiscountTypeRow = typeof voucherDiscountTypes.$inferSelect
+type VoucherTypeRow = typeof voucherTypes.$inferSelect
 
-export type VoucherDiscountTypeSummary = {
-  id: number
-  key: string
-  label: string
-}
+export type ShopSummary = Pick<ShopRow, 'id' | 'code' | 'name'>
 
-export type VoucherTypeSummary = {
-  id: number
-  name: string
-}
+export type VoucherDiscountTypeSummary = Pick<VoucherDiscountTypeRow, 'id' | 'key' | 'label'>
 
-export type VoucherInsertArgs = {
-  shopId: number
-  voucherDiscountTypeId: number
-  voucherTypeId: number
-  minSpend: number
-  discount: number
-  maxDiscount: number | null
-}
+export type VoucherTypeSummary = Pick<VoucherTypeRow, 'id' | 'name'>
+
+type VoucherInsert = typeof vouchers.$inferInsert
+export type VoucherInsertArgs = Pick<
+  VoucherInsert,
+  'shopId' | 'voucherDiscountTypeId' | 'voucherTypeId' | 'minSpend' | 'discount' | 'maxDiscount'
+>
 
 export type VoucherSummary = {
   id: number
@@ -43,8 +35,8 @@ export type VoucherSummary = {
   createdAt: Date | number | null
 }
 
-export async function listShops(): Promise<ShopSummary[]> {
-  const rows = await db
+export async function listShops(executor: DbClient = db): Promise<ShopSummary[]> {
+  const rows = await executor
     .select({
       id: shops.id,
       code: shops.code,
@@ -56,8 +48,8 @@ export async function listShops(): Promise<ShopSummary[]> {
   return rows
 }
 
-export async function listVoucherDiscountTypes(): Promise<VoucherDiscountTypeSummary[]> {
-  const rows = await db
+export async function listVoucherDiscountTypes(executor: DbClient = db): Promise<VoucherDiscountTypeSummary[]> {
+  const rows = await executor
     .select({
       id: voucherDiscountTypes.id,
       key: voucherDiscountTypes.key,
@@ -69,8 +61,8 @@ export async function listVoucherDiscountTypes(): Promise<VoucherDiscountTypeSum
   return rows
 }
 
-export async function listVoucherTypes(): Promise<VoucherTypeSummary[]> {
-  const rows = await db
+export async function listVoucherTypes(executor: DbClient = db): Promise<VoucherTypeSummary[]> {
+  const rows = await executor
     .select({
       id: voucherTypes.id,
       name: voucherTypes.name,
@@ -81,8 +73,8 @@ export async function listVoucherTypes(): Promise<VoucherTypeSummary[]> {
   return rows
 }
 
-export async function getVoucherById(id: number): Promise<VoucherSummary | null> {
-  const rows = await db
+export async function getVoucherById(id: number, executor: DbClient = db): Promise<VoucherSummary | null> {
+  const rows = await executor
     .select({
       id: vouchers.id,
       shopId: vouchers.shopId,
@@ -108,8 +100,8 @@ export async function getVoucherById(id: number): Promise<VoucherSummary | null>
   return rows.length ? rows[0] : null
 }
 
-export async function listRecentVouchers(limit = 10): Promise<VoucherSummary[]> {
-  const rows = await db
+export async function listRecentVouchers(limit = 10, executor: DbClient = db): Promise<VoucherSummary[]> {
+  const rows = await executor
     .select({
       id: vouchers.id,
       shopId: vouchers.shopId,
@@ -135,8 +127,8 @@ export async function listRecentVouchers(limit = 10): Promise<VoucherSummary[]> 
   return rows
 }
 
-export async function insertVoucher(args: VoucherInsertArgs) {
-  await db.insert(vouchers).values({
+export async function insertVoucher(args: VoucherInsertArgs, executor: DbClient = db) {
+  await executor.insert(vouchers).values({
     shopId: args.shopId,
     voucherDiscountTypeId: args.voucherDiscountTypeId,
     voucherTypeId: args.voucherTypeId,
@@ -146,8 +138,8 @@ export async function insertVoucher(args: VoucherInsertArgs) {
   }).run()
 }
 
-export async function updateVoucher(args: VoucherInsertArgs & { id: number }) {
-  const rows = await db
+export async function updateVoucher(args: VoucherInsertArgs & { id: number }, executor: DbClient = db) {
+  const rows = await executor
     .update(vouchers)
     .set({
       shopId: args.shopId,
@@ -164,7 +156,7 @@ export async function updateVoucher(args: VoucherInsertArgs & { id: number }) {
   return rows.length > 0
 }
 
-export async function deleteVoucherById(id: number) {
-  const result = await db.delete(vouchers).where(eq(vouchers.id, id)).run()
+export async function deleteVoucherById(id: number, executor: DbClient = db) {
+  const result = await executor.delete(vouchers).where(eq(vouchers.id, id)).run()
   return result.changes > 0
 }

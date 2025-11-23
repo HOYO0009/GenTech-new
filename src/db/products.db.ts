@@ -1,5 +1,5 @@
 import { eq, sql } from 'drizzle-orm'
-import { db } from './connection.db'
+import { db, DbClient } from './connection.db'
 import { productStatuses, products, suppliers } from './schema.db'
 import type { Product } from './schema.db'
 
@@ -15,13 +15,10 @@ export type ProductSummary = {
   purchaseRemarks: Product['purchaseRemarks']
 }
 
-export type ProductStatus = {
-  id: number
-  name: string
-}
+export type ProductStatus = typeof productStatuses.$inferSelect
 
-export async function listProducts(): Promise<ProductSummary[]> {
-  const rows = await db
+export async function listProducts(executor: DbClient = db): Promise<ProductSummary[]> {
+  const rows = await executor
     .select({
       sku: products.sku,
       name: products.name,
@@ -51,8 +48,8 @@ export async function listProducts(): Promise<ProductSummary[]> {
   }))
 }
 
-export async function getProductBySku(sku: string): Promise<ProductSummary | null> {
-  const rows = await db
+export async function getProductBySku(sku: string, executor: DbClient = db): Promise<ProductSummary | null> {
+  const rows = await executor
     .select({
       sku: products.sku,
       name: products.name,
@@ -90,12 +87,12 @@ export async function getProductBySku(sku: string): Promise<ProductSummary | nul
   }
 }
 
-export async function getProductByName(name: string): Promise<ProductSummary | null> {
+export async function getProductByName(name: string, executor: DbClient = db): Promise<ProductSummary | null> {
   const normalized = name.toLowerCase().trim()
   if (!normalized) {
     return null
   }
-  const rows = await db
+  const rows = await executor
     .select({
       sku: products.sku,
       name: products.name,
@@ -151,8 +148,8 @@ export async function updateProduct({
   purchaseRemarks: string | null
   supplierId: number | null
   supplierLink: string | null
-}) {
-  const rows = await db
+}, executor: DbClient = db) {
+  const rows = await executor
     .update(products)
     .set({
       sku: newSku,
@@ -186,8 +183,8 @@ export async function insertProduct({
   purchaseRemarks: string | null
   supplierId: number | null
   supplierLink: string | null
-}) {
-  await db
+}, executor: DbClient = db) {
+  await executor
     .insert(products)
     .values({
       sku,
@@ -202,13 +199,13 @@ export async function insertProduct({
   return true
 }
 
-export async function deleteProductBySku(sku: string) {
-  const result = await db.delete(products).where(eq(products.sku, sku)).run()
+export async function deleteProductBySku(sku: string, executor: DbClient = db) {
+  const result = await executor.delete(products).where(eq(products.sku, sku)).run()
   return result.changes > 0
 }
 
-export async function listProductStatuses(): Promise<ProductStatus[]> {
-  const rows = await db
+export async function listProductStatuses(executor: DbClient = db): Promise<ProductStatus[]> {
+  const rows = await executor
     .select({
       id: productStatuses.id,
       name: productStatuses.name,
@@ -219,8 +216,8 @@ export async function listProductStatuses(): Promise<ProductStatus[]> {
   return rows
 }
 
-export async function listSuppliers() {
-  const rows = await db
+export async function listSuppliers(executor: DbClient = db): Promise<Array<Pick<typeof suppliers.$inferSelect, 'id' | 'name'>>> {
+  const rows = await executor
     .select({
       id: suppliers.id,
       name: suppliers.name,

@@ -62,6 +62,40 @@ GenTech-new/
 - Seed through migrations, query from database
 - No hardcoded lists that drift from database reality
 
+### KISS (Keep It Simple, Stupid)
+- Keep it simple.
+- Reduce complexity.
+- Choose clarity over cleverness.
+
+### YAGNI (You Aren’t Gonna Need It)
+- Don’t build features until they’re actually needed.
+- Avoid designing for hypothetical future scenarios.
+- Implement only what delivers value right now.
+
+### DRY (Don’t Repeat Yourself)
+- Duplicate logic → bugs when you change one copy but not the other.
+- But don’t abstract too early.
+- Abstract only when duplication becomes an actual maintenance burden.
+
+### The Principle of Least Privilege
+- Security + stability
+- Give components the minimum access they need
+- Avoid global state
+- Avoid “god objects”
+- Keep boundaries tight
+
+### Readability > Cleverness
+- Clear variable names
+- Clear flow
+- Predictable behavior
+- Comments only where needed
+
+### Prefer Composition Over Inheritance
+- A real-world lifesaver.
+- Composition keeps systems flexible
+- Inheritance trees become rigidity traps
+- Easier testing, easier extension, fewer surprises
+
 ---
 
 ## Architecture Layers
@@ -159,28 +193,6 @@ await db.transaction(async (tx) => {
 
 ---
 
-## Code Quality
-
-### Do This
-- Validate inputs with Zod at API boundaries
-- Use TypeScript strict mode without exceptions
-- Store money as integer cents
-- Wrap multi-step operations in transactions
-- Keep business logic in service layer
-- Use Drizzle query builder for type safety
-- Let schema define types (no manual interfaces)
-
-### Avoid This
-- Never use `any` or `@ts-ignore`
-- Never use floats for money calculations
-- Never trust external input without validation
-- Never mix business logic into route handlers
-- Never write raw SQL when query builder works
-- Never swallow errors silently
-- Never create manual type definitions that drift from schema
-
----
-
 ## Testing
 
 ```bash
@@ -222,4 +234,3 @@ const db = drizzle(sqlite, { logger: true })
 
 ---
 
-**Remember:** Type safety + validation = confidence. Fast code is useless if it's wrong.

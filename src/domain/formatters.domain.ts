@@ -15,6 +15,13 @@ export const toCents = (amount: number) => {
   return Math.round(amount * 100)
 }
 
+export const toBasisPoints = (percentage: number) => {
+  if (!Number.isFinite(percentage)) {
+    throw new Error('Percentage must be a valid number.')
+  }
+  return Math.round(percentage * 100)
+}
+
 const currencySymbols: Record<SupportedCurrency, string> = {
   SGD: '$',
   USD: '$',
@@ -27,6 +34,11 @@ export const formatMoney = (amount: number | null, currency: SupportedCurrency =
   const symbol = currencySymbols[currency] ?? '$'
   const suffix = currency === 'SGD' ? '' : ` ${currency}`
   return `${symbol}${dollars.toFixed(2)}${suffix}`
+}
+
+export const formatPercentageFromBasisPoints = (basisPoints: number | null) => {
+  if (basisPoints === null || Number.isNaN(basisPoints)) return 'N/A'
+  return `${(basisPoints / 100).toFixed(2)}%`
 }
 
 export const formatTimestamp = (value: Date | number | null) => {

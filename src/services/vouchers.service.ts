@@ -1,11 +1,11 @@
-import { toCents, escapeHtml } from '../domain/formatters.domain'
+import { toCents, toBasisPoints, escapeHtml } from '../domain/formatters.domain'
 import { recordChange } from './changeLogs.service'
 import { FieldChangeDetector, FieldCheck } from '../domain/detectors.domain'
 import { ensureAmount } from '../domain/validators.domain'
-import { deleteWithConfirmation, DeleteWithConfirmationOptions } from '../domain/delete.domain'
-import { createChangeService } from '../domain/changeService.domain'
+import { deleteWithConfirmation, DeleteWithConfirmationOptions, DeleteResult } from '../domain/delete.domain'
 import { ServiceResult, errorResult, successResult, ErrorMessages, SuccessMessages } from '../domain/results.domain'
 import { VoucherInsertArgs, VoucherSummary } from '../db/vouchers.db'
+import { db } from '../db/connection.db'
 import { IVoucherRepository } from '../repositories/voucher.repository.interface'
 import { VoucherRepository } from '../repositories/voucher.repository'
 import { VoucherTransformationService } from './voucherTransformation.service'
@@ -28,6 +28,19 @@ export interface VouchersPagePayload {
   vouchers: VoucherListItem[]
 }
 
+/**
+ * Raw voucher inputs from the API boundary (dollars and percentages).
+ * They are normalized to cents/basis points before persistence.
+ */
+export interface VoucherDraftArgs {
+  shopId: number
+  voucherDiscountTypeId: number
+  voucherTypeId: number
+  minSpend: number
+  discount: number
+  maxDiscount: number | null
+}
+
 type VoucherChangeSnapshot = {
   shopId: number
   voucherTypeId: number | null
@@ -37,12 +50,18 @@ type VoucherChangeSnapshot = {
   maxDiscount: number | null
 }
 
-const normalizeMoneyFields = (
-  args: VoucherInsertArgs,
-  discountTypeKey: string
-): VoucherInsertArgs => {
+const voucherChangeLabels: Record<keyof VoucherChangeSnapshot, string> = {
+  shopId: 'Shop',
+  voucherTypeId: 'Voucher type',
+  voucherDiscountTypeId: 'Discount type',
+  minSpend: 'Minimum spend',
+  discount: 'Discount',
+  maxDiscount: 'Max discount',
+}
+
+const normalizeMoneyFields = (args: VoucherDraftArgs, discountTypeKey: string): VoucherInsertArgs => {
   const discountValue =
-    discountTypeKey === 'percentage' ? args.discount : toCents(args.discount)
+    discountTypeKey === 'percentage' ? toBasisPoints(args.discount) : toCents(args.discount)
   return {
     ...args,
     minSpend: toCents(args.minSpend),
@@ -169,7 +188,7 @@ export class VoucherService {
     }
   }
 
-  async createVoucher(args: VoucherInsertArgs): Promise<VoucherCreateResult> {
+  async createVoucher(args: VoucherDraftArgs): Promise<VoucherCreateResult> {
     let resolved
     try {
       resolved = await this.resolveVoucherSelections({
@@ -192,29 +211,29 @@ export class VoucherService {
     const normalizedArgs = normalizeMoneyFields(args, resolved.voucherDiscountType.key)
 
     try {
-      await this.repository.insertVoucher(normalizedArgs)
+      await db.transaction(async (tx) => {
+        await this.repository.insertVoucher(normalizedArgs, tx)
+        await recordChange(
+          {
+            tableName: 'vouchers',
+            action: 'INSERT',
+            description: `Voucher for ${resolved.shop.name} (${resolved.voucherDiscountType.label} / ${resolved.voucherType.name}) created`,
+            payload: {
+              shopId: normalizedArgs.shopId,
+              voucherDiscountTypeId: normalizedArgs.voucherDiscountTypeId,
+              voucherTypeId: normalizedArgs.voucherTypeId,
+              minSpend: normalizedArgs.minSpend,
+              discount: normalizedArgs.discount,
+              maxDiscount: normalizedArgs.maxDiscount,
+            },
+            source: 'vouchers/create',
+          },
+          tx
+        )
+      })
     } catch (error) {
       console.error('Unable to insert voucher', error)
       return errorResult(ErrorMessages.UNABLE_TO_SAVE('voucher'), 500)
-    }
-
-    try {
-      await recordChange({
-        tableName: 'vouchers',
-        action: 'INSERT',
-        description: `Voucher for ${resolved.shop.name} (${resolved.voucherDiscountType.label} / ${resolved.voucherType.name}) created`,
-        payload: {
-          shopId: normalizedArgs.shopId,
-          voucherDiscountTypeId: normalizedArgs.voucherDiscountTypeId,
-          voucherTypeId: normalizedArgs.voucherTypeId,
-          minSpend: normalizedArgs.minSpend,
-          discount: normalizedArgs.discount,
-          maxDiscount: normalizedArgs.maxDiscount,
-        },
-        source: 'vouchers/create',
-      })
-    } catch (error) {
-      console.error('Unable to record voucher change', error)
     }
 
     return successResult(SuccessMessages.SAVED('Voucher'))
@@ -223,7 +242,7 @@ export class VoucherService {
   async updateVoucherDetails({
     id,
     ...args
-  }: VoucherInsertArgs & { id: number }): Promise<VoucherCreateResult> {
+  }: VoucherDraftArgs & { id: number }): Promise<VoucherCreateResult> {
     if (!Number.isInteger(id) || id <= 0) {
       return errorResult(ErrorMessages.INVALID_SELECTION('voucher'), 400)
     }
@@ -270,32 +289,56 @@ export class VoucherService {
       discount: normalizedArgs.discount,
       maxDiscount: normalizedArgs.maxDiscount ?? null,
     }
-    const hasChanges = voucherHasChanges(normalizedExistingVoucher, normalizedIncomingVoucher)
-    if (!hasChanges) {
+    const changeDetector = new FieldChangeDetector(
+      normalizedExistingVoucher,
+      normalizedIncomingVoucher,
+      voucherChangeFields
+    )
+    const changedFields = changeDetector.getChangedFields()
+    if (!changedFields.length) {
       return successResult(ErrorMessages.NO_CHANGES)
     }
 
-    const updated = await this.repository.updateVoucher({ id, ...normalizedArgs })
+    let updated: boolean
+    try {
+      updated = await db.transaction(async (tx) => {
+        const success = await this.repository.updateVoucher({ id, ...normalizedArgs }, tx)
+        if (!success) {
+          return false
+        }
+        await recordChange(
+          {
+            tableName: 'vouchers',
+            action: 'UPDATE',
+            description: `Voucher #${id} updated for ${resolved.shop.name} (${resolved.voucherDiscountType.label} / ${resolved.voucherType.name})`,
+            payload: {
+              id,
+              ...normalizedArgs,
+            },
+            source: 'vouchers/update',
+          },
+          tx
+        )
+        return true
+      })
+    } catch (error) {
+      console.error('Unable to record voucher change', error)
+      return errorResult(ErrorMessages.UNABLE_TO_SAVE('voucher'), 500)
+    }
+
     if (!updated) {
       return errorResult(ErrorMessages.NOT_FOUND('Voucher'), 404)
     }
 
-    try {
-      await recordChange({
-        tableName: 'vouchers',
-        action: 'UPDATE',
-        description: `Voucher #${id} updated for ${resolved.shop.name} (${resolved.voucherDiscountType.label} / ${resolved.voucherType.name})`,
-        payload: {
-          id,
-          ...normalizedArgs,
-        },
-        source: 'vouchers/update',
-      })
-    } catch (error) {
-      console.error('Unable to record voucher change', error)
-    }
+    const changedFieldLabels = changedFields
+      .map((field) => voucherChangeLabels[field])
+      .filter(Boolean)
 
-    return successResult(SuccessMessages.UPDATED('Voucher'))
+    return {
+      ...successResult(SuccessMessages.UPDATED('Voucher')),
+      subject: `Voucher #${id}`,
+      details: changedFieldLabels,
+    }
   }
 
   async deleteVoucherRecord(id: number): Promise<VoucherCreateResult> {
@@ -303,24 +346,39 @@ export class VoucherService {
       return errorResult(ErrorMessages.INVALID_SELECTION('voucher'), 400)
     }
 
-    const deleted = await this.repository.deleteVoucherById(id)
+    let deleted: boolean
+    try {
+      deleted = await db.transaction(async (tx) => {
+        const success = await this.repository.deleteVoucherById(id, tx)
+        if (!success) {
+          return false
+        }
+        await recordChange(
+          {
+            tableName: 'vouchers',
+            action: 'DELETE',
+            description: `Voucher #${id} deleted`,
+            payload: { id },
+            source: 'vouchers/delete',
+          },
+          tx
+        )
+        return true
+      })
+    } catch (error) {
+      console.error('Unable to delete voucher', error)
+      return errorResult(ErrorMessages.UNABLE_TO_SAVE('voucher'), 500)
+    }
+
     if (!deleted) {
       return errorResult(ErrorMessages.NOT_FOUND('Voucher'), 404)
     }
 
-    try {
-      await recordChange({
-        tableName: 'vouchers',
-        action: 'DELETE',
-        description: `Voucher #${id} deleted`,
-        payload: { id },
-        source: 'vouchers/delete',
-      })
-    } catch (error) {
-      console.error('Unable to record voucher change', error)
+    return {
+      ...successResult(SuccessMessages.DELETED('Voucher')),
+      subject: `Voucher #${id}`,
+      details: ['Deleted'],
     }
-
-    return successResult(SuccessMessages.DELETED('Voucher'))
   }
 
   async deleteVoucherRecordWithConfirmation(
@@ -330,33 +388,46 @@ export class VoucherService {
     if (!Number.isInteger(id) || id <= 0) {
       return errorResult(ErrorMessages.INVALID_SELECTION('voucher'), 400)
     }
-    const options: DeleteWithConfirmationOptions<VoucherSummary, number> = {
-      identifierLabel: 'Voucher',
-      notFoundMessage: 'Voucher not found.',
-      expectedConfirmation: (existing) => voucherConfirmationExpectations(existing),
-      confirmationErrorMessage: 'Confirmation does not match voucher selection.',
-      deleteEntity: async (existing) => this.repository.deleteVoucherById(existing.id),
-      successMessage: () => 'Voucher deleted.',
-      loadExisting: (identifier) => this.repository.getVoucherById(identifier),
-      recordChange: (existing) =>
-        recordChange({
-          tableName: 'vouchers',
-          action: 'DELETE',
-          description: `Voucher #${existing.id} for ${existing.shopName} removed`,
-          payload: { id: existing.id, shopId: existing.shopId },
-          source: 'vouchers/delete',
-        }),
+    let result: DeleteResult
+    try {
+      result = await db.transaction(async (tx) => {
+        const options: DeleteWithConfirmationOptions<VoucherSummary, number> = {
+          identifierLabel: 'Voucher',
+          notFoundMessage: 'Voucher not found.',
+          expectedConfirmation: (existing) => voucherConfirmationExpectations(existing),
+          confirmationErrorMessage: 'Confirmation does not match voucher selection.',
+          deleteEntity: async (existing) => this.repository.deleteVoucherById(existing.id, tx),
+          successMessage: () => 'Voucher deleted.',
+          loadExisting: (identifier) => this.repository.getVoucherById(identifier, tx),
+          recordChange: (existing) =>
+            recordChange(
+              {
+                tableName: 'vouchers',
+                action: 'DELETE',
+                description: `Voucher #${existing.id} for ${existing.shopName} removed`,
+                payload: { id: existing.id, shopId: existing.shopId },
+                source: 'vouchers/delete',
+              },
+              tx
+            ),
+        }
+        return deleteWithConfirmation({
+          identifier: id,
+          confirmation,
+          options,
+        })
+      })
+    } catch (error) {
+      console.error('Unable to delete voucher', error)
+      return errorResult(ErrorMessages.UNABLE_TO_SAVE('voucher'), 500)
     }
-    const result = await deleteWithConfirmation({
-      identifier: id,
-      confirmation,
-      options,
-    })
 
     // Convert DeleteResult to ServiceResult
     return {
       status: result.status,
       message: result.message,
+      subject: `Voucher #${id}`,
+      details: result.status === 200 ? ['Deleted'] : undefined,
     }
   }
 }
@@ -373,21 +444,15 @@ export async function getVouchersPagePayload(
   return defaultVoucherService.getVouchersPagePayload(options)
 }
 
-export async function createVoucher(args: VoucherInsertArgs): Promise<VoucherCreateResult> {
+export async function createVoucher(args: VoucherDraftArgs): Promise<VoucherCreateResult> {
   return defaultVoucherService.createVoucher(args)
 }
 
 export async function updateVoucherDetails(
-  args: VoucherInsertArgs & { id: number }
+  args: VoucherDraftArgs & { id: number }
 ): Promise<VoucherCreateResult> {
   return defaultVoucherService.updateVoucherDetails(args)
 }
-
-export const voucherChangeService = createChangeService<
-  VoucherChangeSnapshot,
-  VoucherInsertArgs & { id: number },
-  VoucherCreateResult
->(voucherSnapshotFromArgs, voucherHasChanges, updateVoucherDetails)
 
 export async function deleteVoucherRecord(id: number): Promise<VoucherCreateResult> {
   return defaultVoucherService.deleteVoucherRecord(id)
