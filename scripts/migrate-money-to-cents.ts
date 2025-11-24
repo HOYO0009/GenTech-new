@@ -8,7 +8,6 @@ type MoneyColumn = {
 const MONEY_COLUMNS: MoneyColumn[] = [
   { table: 'products', column: 'cost' },
   { table: 'product_pricing', column: 'sell_price' },
-  { table: 'product_pricing', column: 'actual_sell_price' },
   { table: 'product_pricing', column: 'competitor_price' },
 ]
 

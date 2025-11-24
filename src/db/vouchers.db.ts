@@ -100,7 +100,7 @@ export async function getVoucherById(id: number, executor: DbClient = db): Promi
   return rows.length ? rows[0] : null
 }
 
-export async function listRecentVouchers(limit = 10, executor: DbClient = db): Promise<VoucherSummary[]> {
+export async function listRecentVouchers(limit = 1000, executor: DbClient = db): Promise<VoucherSummary[]> {
   const rows = await executor
     .select({
       id: vouchers.id,

@@ -5,6 +5,9 @@ import { registerVoucherRoutes } from './controllers/vouchers.routes'
 import { registerChangeLogRoutes } from './controllers/changeLogs.routes'
 import { registerStatusRoutes } from './controllers/status.routes'
 import { registerSettingsRoutes } from './controllers/settings.routes'
+import { registerFeeRoutes } from './controllers/fees.routes'
+import { registerCategoryRoutes } from './controllers/categories.routes'
+import { registerListingRoutes } from './controllers/listings.routes'
 
 const app = new Hono()
 
@@ -14,6 +17,9 @@ registerVoucherRoutes(app)
 registerChangeLogRoutes(app)
 registerStatusRoutes(app)
 registerSettingsRoutes(app)
+registerFeeRoutes(app)
+registerCategoryRoutes(app)
+registerListingRoutes(app)
 
 const handler = {
   port: 3000,

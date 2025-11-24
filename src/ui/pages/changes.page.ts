@@ -103,43 +103,54 @@ const renderPaginationControls = (pagination: ChangePagination) => {
 
 const renderChangeCard = (change: ChangeLogEvent) => {
   const payloadBlock = change.payload
-    ? `<pre class="bg-black/70 rounded border border-white/10 p-3 text-[0.65rem] text-white/70 overflow-auto">${change.payload}</pre>`
-    : ''
-  const sourceBlock = change.source ? `<p class="${uiClasses.text.metadataSmall}">Source: ${change.source}</p>` : ''
-  return `<article class="${uiClasses.card.base}">
-      <div class="${uiClasses.layout.flex.between}">
-        <div class="${uiClasses.layout.space.y1}">
-          <p class="${uiClasses.text.body}">${change.description}</p>
-          <p class="${uiClasses.text.metadata}">Table: ${change.tableLabel}</p>
-        </div>
-        <div class="text-right space-y-1">
-          <p class="${uiClasses.text.metadata}">${change.action}</p>
-          <p class="${uiClasses.text.metadataSmall}">${change.occurredAt}</p>
-        </div>
+    ? `<pre class="rounded-lg border border-white/10 bg-black/60 p-3 text-[0.65rem] text-white/70 max-h-32 overflow-auto">${change.payload}</pre>`
+    : '<span class="text-white/50 text-[0.7rem]">-</span>'
+  const sourceText = change.source || '-'
+  return `<div class="grid grid-cols-[1.1fr_0.8fr_0.7fr_1.8fr_1fr_0.8fr] items-start gap-3 border-b border-white/5 px-3 py-4 last:border-0">
+      <div class="space-y-1">
+        <p class="${uiClasses.text.metadataSmall}">${change.occurredAt}</p>
+        <p class="${uiClasses.text.body}">${change.description}</p>
       </div>
-      ${payloadBlock}
-      ${sourceBlock}
-    </article>`
+      <p class="${uiClasses.text.metadata}">${change.tableLabel}</p>
+      <p class="${uiClasses.text.metadata}">${change.action}</p>
+      <div>${payloadBlock}</div>
+      <p class="${uiClasses.text.bodySmall} break-words">${sourceText}</p>
+      <div class="text-right">
+        <span class="${uiClasses.text.metadataSmall}">#${change.id}</span>
+      </div>
+    </div>`
 }
 
 const renderDatabaseAccessPanel = () => {
   const dbPath = 'gentech.sqlite'
-  return `<section class="${uiClasses.panel.base}">
+  return `<section class="${uiClasses.panel.base} space-y-4">
       <div class="${uiClasses.layout.flex.between}">
         <div class="${uiClasses.layout.space.y1}">
-          <p class="${uiClasses.text.headingBold}">SQLite database</p>
-          <p class="${uiClasses.text.metadata}">Read-only snapshot</p>
+          <p class="${uiClasses.text.headingBold}">DB Browser style</p>
+          <p class="${uiClasses.text.metadata}">Read-only access</p>
         </div>
         <span class="${uiClasses.text.metadataSmall}">${dbPath}</span>
       </div>
-      <p class="${uiClasses.text.bodySmall}">Download a clean copy of the live database to inspect in your SQLite viewer. Keep the file read-only to avoid unintended writes.</p>
       <div class="${uiClasses.layout.flex.gap3} flex-wrap">
-        <a class="${uiClasses.button.secondaryCompact}" href="/changes/database" download>Download database</a>
-        <button type="button" class="${uiClasses.button.secondaryCompact}" data-copy-db-path="${dbPath}">Copy file path</button>
+        <a class="${uiClasses.button.secondaryCompact}" href="/changes/database" download>Download</a>
+        <button type="button" class="${uiClasses.button.secondaryCompact}" data-copy-db-path="${dbPath}">Copy path</button>
+        <a class="${uiClasses.button.secondaryCompact}" href="https://sqlitebrowser.org/" target="_blank" rel="noreferrer">Get DB Browser</a>
       </div>
-      <div class="${uiClasses.card.compact}">
-        <p class="${uiClasses.text.label}">File</p>
-        <code class="text-[0.75rem] break-all text-white/80">${dbPath}</code>
+      <div class="grid gap-3 md:grid-cols-2">
+        <div class="${uiClasses.card.compact}">
+          <p class="${uiClasses.text.label}">Open steps</p>
+          <ol class="list-decimal list-inside text-[0.85rem] text-white/80 space-y-1">
+            <li>Download the snapshot above.</li>
+            <li>Open DB Browser for SQLite.</li>
+            <li>Choose "Open Database" & select <span class="font-semibold">gentech.sqlite</span>.</li>
+            <li>Browse tables in read-only mode.</li>
+          </ol>
+        </div>
+        <div class="${uiClasses.card.compact} space-y-2">
+          <p class="${uiClasses.text.label}">Path</p>
+          <code class="text-[0.75rem] break-all text-white/80">${dbPath}</code>
+          <p class="${uiClasses.text.metadataSmall}">Keep the file read-only to avoid unintended writes.</p>
+        </div>
       </div>
     </section>`
 }
@@ -172,13 +183,24 @@ export const changesPage = (changes: ChangeLogEvent[], currentPage = 1) => {
     ? visibleChanges.map(renderChangeCard).join('')
     : `<p class="${uiClasses.text.bodySmall}">No activity recorded yet.</p>`
   const paginationControls = pagination.totalChanges ? renderPaginationControls(pagination) : ''
-  const changeLogSection = `<section class="${uiClasses.panel.inner} space-y-5">
+  const changeLogSection = `<section class="${uiClasses.panel.inner} space-y-4">
       <div class="${uiClasses.layout.flex.between}">
-        <p class="${uiClasses.text.headingBold}">Recent changes</p>
+        <div class="${uiClasses.layout.space.y1}">
+          <p class="${uiClasses.text.headingBold}">Table view</p>
+          <p class="${uiClasses.text.metadataSmall}">Recent change log (read-only)</p>
+        </div>
         <p class="${uiClasses.text.metadata}">${pagination.totalChanges} event(s)</p>
       </div>
       ${paginationControls}
-      <div class="${uiClasses.layout.space.y3}">
+      <div class="overflow-auto rounded-xl border border-white/10 bg-black/40">
+        <div class="grid grid-cols-[1.1fr_0.8fr_0.7fr_1.8fr_1fr_0.8fr] gap-3 border-b border-white/10 bg-white/5 px-3 py-2 text-[0.65rem] uppercase tracking-[0.3em] text-white/60">
+          <span>Timestamp</span>
+          <span>Table</span>
+          <span>Action</span>
+          <span>Payload</span>
+          <span>Source</span>
+          <span>ID</span>
+        </div>
         ${changeItems}
       </div>
       ${paginationControls}

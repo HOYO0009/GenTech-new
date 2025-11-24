@@ -27,21 +27,21 @@ export const uiClasses = {
    * Text styles - Typography utilities
    */
   text: {
-    label: 'text-[0.65rem] uppercase tracking-[0.3em] text-white/50',
-    labelBright: 'text-[0.65rem] uppercase tracking-[0.3em] text-white/70',
-    heading: 'text-sm uppercase tracking-[0.3em] text-white/70',
-    headingBold: 'text-sm uppercase tracking-[0.3em] text-white font-semibold',
-    metadata: 'text-[0.65rem] uppercase tracking-[0.4em] text-white/60',
-    metadataSmall: 'text-[0.65rem] uppercase tracking-[0.35em] text-white/50',
-    subtitle: 'text-sm uppercase tracking-[0.35em] text-white/60',
-    subtitleSecondary: 'text-sm uppercase tracking-[0.35em] text-white/40',
-    body: 'text-base font-semibold text-white',
-    bodyLarge: 'text-lg font-semibold text-white',
-    bodySmall: 'text-sm text-white/80',
-    feedback: 'text-sm text-white/70 uppercase tracking-[0.3em]',
-    feedbackSuccess: 'text-sm uppercase tracking-[0.3em] text-emerald-300',
-    feedbackWarning: 'text-sm uppercase tracking-[0.3em] text-amber-400',
-    feedbackError: 'text-sm uppercase tracking-[0.3em] text-red-400',
+    label: 'text-[0.65rem] uppercase tracking-[0.3em] text-white/70 font-semibold',
+    labelBright: 'text-[0.65rem] uppercase tracking-[0.3em] text-white/90 font-semibold',
+    heading: 'text-sm uppercase tracking-[0.3em] text-white/85 font-semibold',
+    headingBold: 'text-sm uppercase tracking-[0.3em] text-white font-bold',
+    metadata: 'text-[0.65rem] uppercase tracking-[0.4em] text-white/75 font-semibold',
+    metadataSmall: 'text-[0.65rem] uppercase tracking-[0.35em] text-white/70 font-semibold',
+    subtitle: 'text-sm uppercase tracking-[0.35em] text-white/80 font-semibold',
+    subtitleSecondary: 'text-sm uppercase tracking-[0.35em] text-white/65 font-semibold',
+    body: 'text-base font-bold text-white',
+    bodyLarge: 'text-lg font-bold text-white',
+    bodySmall: 'text-sm text-white/90 font-semibold',
+    feedback: 'text-sm text-white/80 uppercase tracking-[0.3em] font-semibold',
+    feedbackSuccess: 'text-sm uppercase tracking-[0.3em] text-emerald-300 font-semibold',
+    feedbackWarning: 'text-sm uppercase tracking-[0.3em] text-amber-400 font-semibold',
+    feedbackError: 'text-sm uppercase tracking-[0.3em] text-red-400 font-semibold',
   },
 
   /**
@@ -50,10 +50,14 @@ export const uiClasses = {
   button: {
     primary: 'primary-btn w-full text-center',
     primaryCompact: 'primary-btn',
+    successCompact:
+      'rounded-lg border border-emerald-500/60 bg-emerald-600 px-4 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-white shadow-[0_0_0_1px_rgba(16,185,129,0.35)] hover:bg-emerald-500 hover:border-white/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60',
     secondary:
       'w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-white hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40',
     secondaryCompact:
-      'rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-white hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40',
+      'rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-white hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 aria-[current=true]:border-red-400 aria-[current=true]:text-red-200 aria-[current=true]:bg-white/10',
+    neutralCompact:
+      'rounded-lg border border-white/20 bg-white px-4 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-black hover:border-black/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20',
     dangerCompact:
       'rounded-lg border border-[#ff2b2b]/50 bg-[#b41f26] px-4 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-white shadow-[0_0_0_1px_rgba(255,43,43,0.25)] hover:bg-[#ff2b2b] hover:border-white/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff2b2b]/50',
     ghost:
@@ -67,7 +71,8 @@ export const uiClasses = {
     base: 'w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none',
     search:
       'w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none',
-    select: 'mt-1 w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-sm text-white',
+    select:
+      'mt-1 w-full rounded-lg border border-white/20 bg-black/80 px-3 py-2 text-sm text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08)] focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/20',
     checkbox: 'h-4 w-4 rounded border-white/30 bg-white/10 text-red-300 focus:ring-white/40',
     radio: 'h-4 w-4 rounded border-white/30 bg-white/10 text-red-300 focus:ring-white/40',
     textarea:
@@ -127,6 +132,32 @@ export const uiClasses = {
     withPadding: 'overflow-y-auto pr-2',
     maxH48: 'max-h-48 overflow-y-auto pr-2',
     maxH64: 'max-h-64 overflow-y-auto pr-2',
+  },
+
+  /**
+   * Shop-specific highlight accents
+   */
+  shopHighlight: {
+    shopee: {
+      outline:
+        'border-orange-500/70 shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_32px_rgba(249,115,22,0.25)] bg-gradient-to-r from-black/85 via-black/70 to-orange-500/45',
+      text: 'text-orange-100',
+    },
+    lazada: {
+      outline:
+        'border-blue-500/70 shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_32px_rgba(59,130,246,0.25)] bg-gradient-to-r from-black/85 via-black/70 to-blue-500/45',
+      text: 'text-blue-100',
+    },
+    tiktok: {
+      outline:
+        'border-purple-500/70 shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_32px_rgba(168,85,247,0.25)] bg-gradient-to-r from-black/85 via-black/70 to-purple-500/45',
+      text: 'text-purple-100',
+    },
+    carousell: {
+      outline:
+        'border-red-500/70 shadow-[0_10px_28px_rgba(0,0,0,0.35),0_0_32px_rgba(239,68,68,0.25)] bg-gradient-to-r from-black/85 via-black/70 to-red-500/45',
+      text: 'text-red-100',
+    },
   },
 } as const
 

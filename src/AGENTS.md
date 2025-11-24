@@ -1,6 +1,6 @@
 # Source Code (`src/`)
 
-> Main application source code - routes, business logic, database, and domain utilities
+> Main application source code - routing, business logic, database, repositories, domain utilities, and UI.
 
 ---
 
@@ -8,204 +8,108 @@
 
 ```
 src/
-- db/                 # Database layer (schema, connection, queries)
-- services/           # Business logic layer (products, vouchers, changelogs)
-- domain/             # Domain utilities (formatters, helpers)
-- repositories/       # Repository adapters wrapping db layer
-- ui/                 # Server-rendered UI fragments, pages, and styles
-- index.routes.ts     # Application entry point (Hono routes & handlers)
-- env.d.ts            # TypeScript environment declarations
+- index.routes.ts     # App bootstrap (creates Hono app, registers controllers)
+- controllers/       # Route modules per feature (thin handlers)
+- db/                # Database layer (schema, connection, queries)
+- repositories/      # Repository adapters over db layer
+- services/          # Business logic layer
+- domain/            # Pure utilities and helpers
+- ui/                # Server-rendered UI fragments, pages, styles
+- env.d.ts           # TypeScript environment declarations
 ```
 
-**Naming convention:** `<feature>.<role>.ts` (e.g., `products.service.ts`, `products.page.ts`, `schema.db.ts`, `formatters.domain.ts`).
+**Naming convention:** `<feature>.<role>.ts` (e.g., `products.service.ts`, `products.routes.ts`, `schema.db.ts`, `formatters.domain.ts`).
 
 ---
 
 ## Layer Architecture
 
-### 1. Routes (`index.routes.ts`)
-**Purpose:** HTTP request/response handling only
-- Define Hono routes and middleware
-- Parse request bodies and query params
-- Call service layer functions
-- Return HTTP responses
-- **NO business logic here**
+### Routes (`controllers/`, registered in `index.routes.ts`)
+- Hono route handlers per feature (products, vouchers, change logs, statuses, settings, fees, home)
+- Parse/validate inputs, shape responses
+- Call services; keep logic minimal
+- No direct database access
 
-**Example:**
-```typescript
-app.post('/products', async (c) => {
-  const data = await c.req.json()
-  const result = await createProduct(data) // Service layer
-  return c.json(result, 201)
-})
-```
+### Services (`services/`)
+- Business rules, validation (Zod/manual), orchestration
+- Uses repositories/db for data access
+- Uses domain utilities for formatting, conversions
+- Returns structured payloads for UI
 
-### 2. Service Layer (`services/`)
-**Purpose:** Business logic and orchestration
-- Validate inputs with Zod
-- Coordinate database operations
-- Apply business rules
-- Transform data for views
-- Return structured payloads
+### Repositories (`repositories/`)
+- Thin adapters over db queries
+- Interfaces + concrete implementations per feature
+- No business logic
 
-**Example:**
-```typescript
-export async function createProduct(data: unknown) {
-  const validated = CreateProductSchema.parse(data)
-  const priceInCents = toCents(validated.price)
-  return await insertProduct({ ...validated, price: priceInCents })
-}
-```
+### Database (`db/`)
+- Schema definitions (single source of truth)
+- Connection setup
+- Query functions per feature
+- No business logic or formatting
 
-### 3. Database Layer (`db/`)
-**Purpose:** Data access and schema
-- Define Drizzle ORM schema
-- Database connection setup
-- Low-level query functions
-- Type inference from schema
-- **NO business logic here**
+### Domain (`domain/`)
+- Pure utility functions (money, search, filters, sanitizers, formatters)
+- No side effects, no I/O
 
-**Example:**
-```typescript
-export async function insertProduct(data: NewProduct) {
-  return await db.insert(products).values(data).returning()
-}
-```
-
-### 4. Domain Layer (`domain/`)
-**Purpose:** Pure utility functions
-- Money formatting (`toCents`, `formatMoney`)
-- Date/time helpers
-- String formatters
-- **No side effects, no database access**
+### UI (`ui/`)
+- Layouts, pages, templates, styles (HTMX/Alpine friendly)
+- Receives formatted payloads from services
+- No business logic or database calls
 
 ---
 
-## File Organization
+## File Organization Highlights
 
-### `index.routes.ts` - Main Application
-- Hono app initialization
-- Route definitions (`GET /products`, `POST /vouchers`, etc.)
-- HTML templates and views (inline for simplicity)
-- Visual/CSS foundations
-- Server export for Bun runtime
-
-**Key Sections:**
-1. **Imports** - Services, types, Hono
-2. **App Setup** - `new Hono()`
-3. **Template Helpers** - `navBar()`, `visualFoundation()`
-4. **Routes** - GET/POST/PUT/DELETE handlers
-5. **Export** - `{ port, fetch }` for Bun
-
-### Service Files Pattern
-Each feature gets one service file (suffix):
-- `services/products.service.ts` - Product business logic
-- `services/vouchers.service.ts` - Voucher business logic
-- `services/changeLogs.service.ts` - Changelog business logic
-
-**Service responsibilities:**
-- Export type definitions (from schema)
-- Export Zod validation schemas
-- Export business logic functions
-- Import from `db/` layer for data access
-- Import from `domain/` for utilities
-
-### Database Files Pattern
-One file per table/feature (suffix):
-- `db/schema.db.ts` - All table definitions
-- `db/connection.db.ts` - Database client setup
-- `db/products.db.ts` - Product queries
-- `db/vouchers.db.ts` - Voucher queries
-- `db/changeLogs.db.ts` - Changelog queries
+- `index.routes.ts`: Creates Hono app, registers controllers, exports `{ port, fetch }`. No feature logic here.
+- `controllers/<feature>.routes.ts`: Thin route module per feature; delegate to services.
+- `services/<feature>.service.ts`: Business logic per feature (products, vouchers, fees, search/transformation helpers, change logs).
+- `repositories/<feature>.repository.ts`: Concrete implementations that wrap `db/<feature>.db.ts`.
+- `db/<feature>.db.ts`: Query helpers; schema lives in `db/schema.db.ts`.
+- `ui/pages/*.page.ts`: Page-level renderers; `ui/templates/` holds fragments; `ui/layout.ui.ts` centralizes shell.
 
 ---
 
 ## Common Patterns
 
-### Adding a New Route
-1. Add route handler in `index.routes.ts`
-2. Call service layer function
-3. Return HTTP response
+### Adding a Route (controller-first)
+1. Create/update `controllers/<feature>.routes.ts`.
+2. Validate/parse request data (Zod or manual).
+3. Call service function.
+4. Return JSON/HTML response (no DB calls here).
+5. Register the controller in `index.routes.ts`.
 
-```typescript
-app.get('/new-feature', async (c) => {
-  const data = await getNewFeature()
-  return c.json(data)
-})
-```
+### Adding Business Logic
+1. Update/create `services/<feature>.service.ts`.
+2. Define input schema (Zod) or manual validation.
+3. Use repositories/db functions.
+4. Apply domain utilities (`toCents`, `formatMoney`, sanitizers).
+5. Return payload shaped for UI.
 
-### Adding New Business Logic
-1. Create/update service file in `services/`
-2. Define Zod schema for validation
-3. Implement business logic function
-4. Call database layer for data access
-5. Export function for routes to use
+### Adding Queries
+1. Update schema in `db/schema.db.ts` if needed.
+2. Generate/apply migration (`bun run db:generate`, `bun run db:migrate`).
+3. Add query helpers in `db/<feature>.db.ts`.
+4. Expose through repository.
+5. Consume in services.
 
-```typescript
-// services/feature.service.ts
-import { z } from 'zod'
-import { getFeatures, insertFeature } from '../db/feature.db'
-
-const FeatureSchema = z.object({ name: z.string() })
-
-export async function createFeature(data: unknown) {
-  const validated = FeatureSchema.parse(data)
-  return await insertFeature(validated)
-}
-```
-
-### Adding Database Queries
-1. Define schema in `db/schema.db.ts`
-2. Create query file `db/feature.db.ts`
-3. Export query functions
-4. Use Drizzle query builder (type-safe)
-
-```typescript
-// db/feature.db.ts
-import { db } from './connection.db'
-import { features } from './schema.db'
-import { eq } from 'drizzle-orm'
-
-export async function getFeatureById(id: number) {
-  return await db.select().from(features).where(eq(features.id, id))
-}
-```
-
----
-
-## Type Flow
-
-```
-Schema (db/schema.db.ts)
-  -> Types (typeof table.$inferSelect)
-    -> Service exports
-      -> Route Handlers (index.routes.ts)
-        -> Client (frontend)
-```
-
-**Never define types manually** - always infer from schema:
-```typescript
-// Good
-export type Product = typeof products.$inferSelect
-
-// Bad
-export interface Product { id: number, name: string }
-```
-
----
-
-## Request Flow
-
+### Request/Type Flow
 ```
 HTTP Request
-  -> Route Handler (index.routes.ts)
-  -> Service Layer (services/)
-       -> Zod Validation
-       -> Business Logic
-       -> DB Layer (db/)
-            -> Database Query
-  -> Response to Client
+  -> Controller (controllers/)
+  -> Service (services/) [validation + business rules]
+  -> Repository/DB (repositories/ -> db/)
+  -> Response payload -> UI
 ```
+
+Types flow from schema:
+```
+db/schema.db.ts (table.$inferSelect/Insert)
+  -> db queries
+    -> repositories
+      -> services
+        -> controllers/UI
+```
+**Never hand-write types when they can be inferred.**
 
 ---
 
@@ -213,63 +117,34 @@ HTTP Request
 
 | File | Purpose |
 |------|---------|
-| `index.routes.ts` | Routes, HTTP handlers, HTML templates |
-| `services/products.service.ts` | Product business logic |
+| `index.routes.ts` | App bootstrap, registers controllers |
+| `controllers/products.routes.ts` | Product routes (delegates to services/UI) |
+| `controllers/vouchers.routes.ts` | Voucher routes |
+| `controllers/fees.routes.ts` | Shop fee routes |
+| `services/products.service.ts` | Product business logic/search/transforms |
 | `services/vouchers.service.ts` | Voucher business logic |
-| `services/changeLogs.service.ts` | Changelog business logic |
-| `db/schema.db.ts` | Database table definitions |
-| `db/connection.db.ts` | SQLite connection setup |
-| `domain/formatters.domain.ts` | Money/date formatting utilities |
+| `services/fees.service.ts` | Fee business logic |
+| `db/schema.db.ts` | All table definitions |
+| `db/products.db.ts` | Product queries |
+| `ui/layout.ui.ts` | Shared layout/shell |
 
 ---
 
 ## Working in This Directory
 
-### To add a new feature:
-1. Define table in `db/schema.db.ts`
-2. Generate migration: `bun run db:generate`
-3. Create `db/<feature>.db.ts` for queries
-4. Create `services/<feature>.service.ts` for business logic
-5. Add routes in `index.routes.ts`
-
-### To modify existing feature:
-1. Find service file in `services/`
-2. Update business logic
-3. Update database queries in `db/` if needed
-4. Update routes in `index.routes.ts` if needed
-
-### To debug:
-1. Check types first - TypeScript will catch most errors
-2. Use `console.log()` in service layer
-3. Enable Drizzle query logging in `db/connection.db.ts`
-4. Inspect database with `bun run db:studio`
-
----
-
-## Rules
-
-### Do This
-- Keep routes thin - delegate to services
-- Put business logic in service layer
-- Use Zod validation for all external inputs
-- Let Drizzle infer types from schema
-- Use transactions for multi-step operations
-- Import utilities from `domain/` layer
-
-### Avoid This
-- Don't put business logic in route handlers
-- Don't put business logic in database layer
-- Don't skip validation on external inputs
-- Don't define types manually (use schema inference)
-- Don't use `any` type
-- Don't access database directly from routes
+- Keep controllers thin; push logic to services.
+- Use repositories/db for data access; no raw SQL in services/controllers.
+- Validate external inputs before use.
+- Store money as cents; never use floats for money.
+- Use transactions for multi-step operations.
+- Add UI pieces in `ui/` only; avoid business logic in templates.
 
 ---
 
 ## Navigation
-- **Parent:** [Root AGENTS.md](../AGENTS.md)
-- **Database Layer:** [db/AGENTS.md](db/AGENTS.md)
-- **Service Layer:** [services/AGENTS.md](services/AGENTS.md)
-- **Domain Layer:** [domain/AGENTS.md](domain/AGENTS.md)
-- **Repository Layer:** [repositories/AGENTS.md](repositories/AGENTS.md)
-- **UI Layer:** [ui/AGENTS.md](ui/AGENTS.md)
+- **Parent:** `../AGENTS.md`
+- **Database Layer:** `db/AGENTS.md`
+- **Service Layer:** `services/AGENTS.md`
+- **Domain Layer:** `domain/AGENTS.md`
+- **Repository Layer:** `repositories/AGENTS.md`
+- **UI Layer:** `ui/AGENTS.md`

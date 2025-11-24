@@ -10,6 +10,8 @@
 repositories/
 - changeLog.repository.interface.ts
 - changeLog.repository.ts
+- fees.repository.interface.ts
+- fees.repository.ts
 - product.repository.interface.ts
 - product.repository.ts
 - voucher.repository.interface.ts

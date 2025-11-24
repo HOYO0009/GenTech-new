@@ -9,6 +9,7 @@ export interface VoucherSearchSortOptions {
   search?: string
   sort?: VoucherSortOption
   shopIds?: number[]
+  page?: number
 }
 
 export class VoucherSearchService {
@@ -38,10 +39,16 @@ export class VoucherSearchService {
       filtered = filter.filter(filtered)
     }
 
+    const allowedSorts: VoucherSortOption[] = [
+      'min-spend-asc',
+      'min-spend-desc',
+      'max-discount-asc',
+      'max-discount-desc',
+    ]
     const sortOption: VoucherSortOption =
-      options?.sort && ['date-desc', 'date-asc', 'shop-asc', 'shop-desc'].includes(options.sort)
+      options?.sort && allowedSorts.includes(options.sort)
         ? options.sort
-        : 'date-desc'
+        : 'min-spend-asc'
 
     const sortStrategy: ISortStrategy<VoucherListItem> = new VoucherSortStrategy(sortOption)
     return sortStrategy.sort(filtered)

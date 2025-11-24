@@ -1,24 +1,25 @@
 import { ISortStrategy } from './sortStrategy.interface'
-import { sortByString } from '../sort.domain'
 
 export type VoucherSortableItem = {
   shopName: string
-  createdAtRaw: Date
+  minSpend: number
+  maxDiscount: number | null
 }
 
-export type VoucherSortOption = 'date-desc' | 'date-asc' | 'shop-asc' | 'shop-desc'
+export type VoucherSortOption = 'min-spend-asc' | 'min-spend-desc' | 'max-discount-asc' | 'max-discount-desc'
 
 export class VoucherSortStrategy<T extends VoucherSortableItem> implements ISortStrategy<T> {
   constructor(private sortOption: VoucherSortOption) {}
 
   sort(items: T[]): T[] {
-    if (this.sortOption === 'shop-asc' || this.sortOption === 'shop-desc') {
-      return sortByString(items, (item) => item.shopName, this.sortOption.endsWith('desc') ? 'desc' : 'asc')
+    if (this.sortOption === 'min-spend-asc' || this.sortOption === 'min-spend-desc') {
+      const dir = this.sortOption.endsWith('desc') ? -1 : 1
+      return [...items].sort((a, b) => (a.minSpend - b.minSpend) * dir)
     }
 
-    const dir = this.sortOption === 'date-asc' ? 1 : -1
-    return [...items].sort((a, b) => {
-      return (a.createdAtRaw.getTime() - b.createdAtRaw.getTime()) * dir
-    })
+    // max discount: null means unlimited, treat as Infinity for ascending so it sorts last
+    const normalizeMax = (value: number | null) => (value === null ? Number.POSITIVE_INFINITY : value)
+    const dir = this.sortOption.endsWith('desc') ? -1 : 1
+    return [...items].sort((a, b) => (normalizeMax(a.maxDiscount) - normalizeMax(b.maxDiscount)) * dir)
   }
 }

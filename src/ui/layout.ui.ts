@@ -2,7 +2,15 @@ import { currencyClientScript, supportedCurrencies } from '../domain/currency.do
 import { moneyClientScript } from '../domain/formatters.domain'
 import { shortcutsClientScript } from '../domain/shortcuts.domain'
 
-export type SiteSection = 'home' | 'products' | 'vouchers' | 'changes' | 'settings'
+export type SiteSection =
+  | 'home'
+  | 'products'
+  | 'listings'
+  | 'categories'
+  | 'vouchers'
+  | 'fees'
+  | 'changes'
+  | 'settings'
 
 const navBar = (active: SiteSection) => `
     <nav
@@ -11,7 +19,10 @@ const navBar = (active: SiteSection) => `
     >
       <a class="hover:text-white transition ${active === 'home' ? 'text-white' : 'text-red-400'}" href="/">Home</a>
       <a class="hover:text-white transition ${active === 'products' ? 'text-white' : 'text-red-400'}" href="/products">Products</a>
+      <a class="hover:text-white transition ${active === 'listings' ? 'text-white' : 'text-red-400'}" href="/listings">Listings</a>
+      <a class="hover:text-white transition ${active === 'categories' ? 'text-white' : 'text-red-400'}" href="/categories">Categories</a>
       <a class="hover:text-white transition ${active === 'vouchers' ? 'text-white' : 'text-red-400'}" href="/vouchers">Vouchers</a>
+      <a class="hover:text-white transition ${active === 'fees' ? 'text-white' : 'text-red-400'}" href="/fees">Fees</a>
       <a class="hover:text-white transition ${active === 'changes' ? 'text-white' : 'text-red-400'}" href="/changes">Changes</a>
       <a class="hover:text-white transition ${active === 'settings' ? 'text-white' : 'text-red-400'}" href="/settings">Settings</a>
       <div class="relative shrink-0">

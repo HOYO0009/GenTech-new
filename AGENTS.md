@@ -19,12 +19,13 @@
 ```
 GenTech-new/
 - src/
+  - index.routes.ts    # App bootstrap: create Hono app, register controllers
+  - controllers/       # Route modules per feature (thin handlers)
   - db/                # Database layer (schema, queries, connection)
   - services/          # Business logic (product, voucher, changelog services)
   - domain/            # Domain utilities (formatters, helpers)
   - repositories/      # Repository adapters around db layer
   - ui/                # Server-rendered UI templates and styles
-  - index.routes.ts    # Main application entry (routes, handlers)
   - env.d.ts           # TypeScript environment declarations
 - scripts/              # Migration and maintenance scripts
 - gentech.sqlite        # SQLite database file
@@ -81,7 +82,7 @@ GenTech-new/
 - Security + stability
 - Give components the minimum access they need
 - Avoid global state
-- Avoid “god objects”
+- Avoid "god objects"
 - Keep boundaries tight
 
 ### Readability > Cleverness
@@ -100,28 +101,39 @@ GenTech-new/
 
 ## Architecture Layers
 
+### Routes (`src/controllers/`, registered via `src/index.routes.ts`)
+- Hono route handlers per feature (products, vouchers, fees, settings, statuses, home, change logs)
+- Parse request/response payloads
+- Validate inputs (or call service validators)
+- Delegate to service layer
+- **Keep thin**: no business logic, no formatting
+
+### Service Layer (`src/services/`)
+- Business logic and domain rules
+- Input validation (Zod/manual)
+- Coordinates database operations
+- Returns structured payloads for views
+- Uses domain utilities for money/formatting
+
+### Repository Layer (`src/repositories/`)
+- Thin adapters around db layer
+- Interface + implementation per feature
+- No business rules
+
 ### Database Layer (`src/db/`)
 - Schema definitions (Drizzle ORM tables)
 - Database connection setup
 - Low-level query functions
-- No business logic here
-
-### Service Layer (`src/services/`)
-- Business logic and domain rules
-- Coordinates database operations
-- Returns structured payloads for views
-- Handles validation and transformations
+- Type inference from schema
 
 ### Domain Layer (`src/domain/`)
-- Shared utilities and formatters
-- Pure functions with no side effects
-- Money formatting, date handling, etc.
+- Pure utilities (money, timestamps, search, filters, sanitizers)
+- No side effects
 
-### Routes (`src/index.routes.ts`)
-- HTTP handlers and routing (Hono)
-- Request/response transformations
-- Delegates to service layer
-- Minimal logic in routes
+### UI Layer (`src/ui/`)
+- Server-rendered layouts, pages, templates, styles
+- HTMX + Alpine-friendly markup
+- Receives formatted data from services
 
 ---
 
@@ -131,9 +143,12 @@ GenTech-new/
 1. Define schema in `src/db/schema.db.ts`
 2. Generate migration: `bun run db:generate`
 3. Apply migration: `bun run db:migrate`
-4. Create service in `src/services/<feature>.service.ts`
-5. Add routes in `src/index.routes.ts`
-6. Test with `bun test`
+4. Create queries in `src/db/<feature>.db.ts`
+5. Add repository interface/impl in `src/repositories/`
+6. Create service in `src/services/<feature>.service.ts`
+7. Add routes in `src/controllers/<feature>.routes.ts` and register in `index.routes.ts`
+8. Create UI fragments/pages if needed
+9. Test with `bun test`
 
 ### Working with Money
 ```typescript
@@ -144,19 +159,6 @@ const priceInCents = toCents(19.99) // 1999
 
 // Display as formatted string
 const display = formatMoney(priceInCents) // "$19.99"
-```
-
-### Database Queries
-```typescript
-// Use Drizzle query builder (type-safe)
-import { db } from './db/connection.db.ts'
-import { products } from './db/schema.db.ts'
-import { eq, gt } from 'drizzle-orm'
-
-const activeProducts = await db
-  .select()
-  .from(products)
-  .where(gt(products.stock, 0))
 ```
 
 ### Transactions
@@ -233,4 +235,3 @@ const db = drizzle(sqlite, { logger: true })
 - [Zod](https://zod.dev)
 
 ---
-

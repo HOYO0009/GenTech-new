@@ -1,3 +1,5 @@
+import { existsSync, statSync } from 'fs'
+import { join, resolve } from 'path'
 import { Hono, type Context } from 'hono'
 import {
   createProduct,
@@ -80,6 +82,9 @@ const productBaseSchema = z.object({
   purchaseRemarks: z.string(),
   supplierId: optionalInteger('Supplier'),
   supplierLink: z.string(),
+  shopIds: z
+    .array(z.number().int().positive('Invalid store selection.'))
+    .transform((ids) => [...new Set(ids)]),
 })
 
 const productCreateSchema = productBaseSchema
@@ -97,6 +102,7 @@ const parseCreateProductForm = (form: FormData) => {
     purchaseRemarks: (form.get('purchaseRemarks') ?? '').toString(),
     supplierId: (form.get('supplierId') ?? '').toString(),
     supplierLink: (form.get('supplierLink') ?? '').toString(),
+    shopIds: form.getAll('shopIds').map((value) => Number(value)),
   })
 
   return {
@@ -107,6 +113,7 @@ const parseCreateProductForm = (form: FormData) => {
     purchaseRemarks: parsed.purchaseRemarks,
     supplierId: parsed.supplierId,
     supplierLink: parsed.supplierLink,
+    shopIds: parsed.shopIds,
   }
 }
 
@@ -120,7 +127,68 @@ const parseUpdateProductForm = (form: FormData) => {
     purchaseRemarks: (form.get('purchaseRemarks') ?? '').toString(),
     supplierId: (form.get('supplierId') ?? '').toString(),
     supplierLink: (form.get('supplierLink') ?? '').toString(),
+    shopIds: form.getAll('shopIds').map((value) => Number(value)),
   })
+
+  // Pricing fields (dynamic: sellPrice-<shopId>, competitorPrice-<shopId>, competitorLink-<shopId>, moq-<shopId>)
+  const pricing: Array<{
+    shopId: number
+    sellPriceCents: number | null
+    competitorPriceCents: number | null
+    competitorLink: string | null
+    moq: number | null
+  }> = []
+  const pricingMap = new Map<number, {
+    shopId: number
+    sellPriceCents: number | null
+    competitorPriceCents: number | null
+    competitorLink: string | null
+    moq: number | null
+  }>()
+  for (const [key, raw] of form.entries()) {
+    if (typeof key !== 'string') continue
+    const match = key.match(/^(sellPrice|competitorPrice|competitorLink|moq)-(\d+)$/)
+    if (!match) continue
+    const field = match[1]
+    const shopId = Number(match[2])
+    if (!Number.isInteger(shopId) || shopId <= 0) continue
+    const entry =
+      pricingMap.get(shopId) ??
+      {
+        shopId,
+        sellPriceCents: null,
+        competitorPriceCents: null,
+        competitorLink: null,
+        moq: null,
+      }
+    const value = (raw ?? '').toString().trim()
+    if (field === 'sellPrice') {
+      if (value) {
+        const parsedValue = Number(value)
+        if (Number.isFinite(parsedValue) && parsedValue >= 0) {
+          entry.sellPriceCents = Math.round(parsedValue * 100)
+        }
+      }
+    } else if (field === 'competitorPrice') {
+      if (value) {
+        const parsedValue = Number(value)
+        if (Number.isFinite(parsedValue) && parsedValue >= 0) {
+          entry.competitorPriceCents = Math.round(parsedValue * 100)
+        }
+      }
+    } else if (field === 'competitorLink') {
+      entry.competitorLink = value || null
+    } else if (field === 'moq') {
+      if (value) {
+        const parsedValue = Number(value)
+        if (Number.isFinite(parsedValue) && Number.isInteger(parsedValue) && parsedValue >= 0) {
+          entry.moq = parsedValue
+        }
+      }
+    }
+    pricingMap.set(shopId, entry)
+  }
+  pricing.push(...pricingMap.values())
 
   return {
     originalSku: parsed.originalSku,
@@ -131,6 +199,8 @@ const parseUpdateProductForm = (form: FormData) => {
     purchaseRemarks: parsed.purchaseRemarks,
     supplierId: parsed.supplierId,
     supplierLink: parsed.supplierLink,
+    shopIds: parsed.shopIds,
+    shopPricing: pricing,
   }
 }
 
@@ -213,6 +283,7 @@ const respondWithProductFeedback = async (
       payload.products,
       payload.statuses,
       payload.suppliers,
+      payload.shops,
       result.message,
       `text-sm uppercase tracking-[0.3em] ${textColor}`
     ),
@@ -220,10 +291,77 @@ const respondWithProductFeedback = async (
   )
 }
 
+const uploadRoot = join(process.cwd(), 'uploads')
+
+const serveProductUpload = (c: Context) => {
+  const fileName = c.req.param('file')
+  if (!fileName) return c.text('Not found', 404)
+  const safe = decodeURIComponent(fileName).replace(/[^a-zA-Z0-9._-]/g, '')
+  const resolved = resolve(uploadRoot, 'products', safe)
+  console.debug('serveProductUpload', { method: c.req.method, fileName: safe, resolved })
+  if (!resolved.startsWith(uploadRoot)) {
+    return c.text('Not found', 404)
+  }
+  if (!existsSync(resolved)) {
+    return c.text('Not found', 404)
+  }
+  const info = statSync(resolved)
+  if (!info.isFile()) {
+    return c.text('Not found', 404)
+  }
+  const file = Bun.file(resolved)
+  const contentType = file.type || 'application/octet-stream'
+  const body = c.req.method === 'HEAD' ? null : file
+  return new Response(body, {
+    headers: {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=86400',
+    },
+  })
+}
+
+const serveUpload = (c: Context) => {
+  const rawPath = c.req.param('*') || ''
+  const cleaned = decodeURIComponent(rawPath).replace(/^[/\\]+/, '')
+  const segments = cleaned.split(/[/\\]+/).filter(Boolean)
+  if (segments.length === 0) {
+    return c.text('Not found', 404)
+  }
+  const resolved = resolve(uploadRoot, ...segments)
+  console.debug('serveUpload', { method: c.req.method, rawPath, cleaned, resolved })
+  if (!resolved.startsWith(uploadRoot)) {
+    return c.text('Not found', 404)
+  }
+  try {
+    if (!existsSync(resolved)) {
+      return c.text('Not found', 404)
+    }
+    const info = statSync(resolved)
+    if (!info.isFile()) {
+      return c.text('Not found', 404)
+    }
+    const file = Bun.file(resolved)
+    const contentType = file.type || 'application/octet-stream'
+    const body = c.req.method === 'HEAD' ? null : file
+    return new Response(body, {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=86400',
+      },
+    })
+  } catch (error) {
+    console.error('Upload serve failed', { rawPath, cleaned, resolved, error })
+    return c.text('Not found', 404)
+  }
+}
+
 export const registerProductRoutes = (app: Hono) => {
+  app.get('/uploads/products/:file', serveProductUpload)
+  app.get('/uploads/*', serveUpload)
+
   app.get('/products', async (c) => {
     const queryParams = parseProductQueryParams(c.req)
-    const { products, statuses, suppliers } = await getProductPagePayload({
+    const { products, statuses, suppliers, shops } = await getProductPagePayload({
       search: queryParams.search,
       sort: queryParams.sort,
       supplierIds: queryParams.supplierFilters,
@@ -234,6 +372,7 @@ export const registerProductRoutes = (app: Hono) => {
         products,
         statuses,
         suppliers,
+        shops,
         '',
         'text-sm text-white/70 uppercase tracking-[0.3em]',
         queryParams.search,
@@ -288,7 +427,7 @@ export const registerProductRoutes = (app: Hono) => {
           })
         )
         if (updatedProduct) {
-          const cardHtml = renderProductCard(updatedProduct, payload.statuses, payload.suppliers)
+          const cardHtml = renderProductCard(updatedProduct, payload.statuses, payload.suppliers, payload.shops)
           return c.html(cardHtml, 200)
         }
         c.header('HX-Retarget', '#product-listings')
@@ -296,6 +435,7 @@ export const registerProductRoutes = (app: Hono) => {
           payload.products,
           payload.statuses,
           payload.suppliers,
+          payload.shops,
           queryParams
         )
         return c.html(listingHtml, 200)
@@ -348,6 +488,7 @@ export const registerProductRoutes = (app: Hono) => {
           payload.products,
           payload.statuses,
           payload.suppliers,
+          payload.shops,
           queryParams
         )
         return c.html(listingHtml, 200)

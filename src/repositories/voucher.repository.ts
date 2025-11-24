@@ -33,7 +33,7 @@ export class VoucherRepository implements IVoucherRepository {
     return dbGetVoucherById(id, executor)
   }
 
-  async listRecentVouchers(limit = 10, executor?: DbClient): Promise<VoucherSummary[]> {
+  async listRecentVouchers(limit = 1000, executor?: DbClient): Promise<VoucherSummary[]> {
     return dbListRecentVouchers(limit, executor)
   }
 

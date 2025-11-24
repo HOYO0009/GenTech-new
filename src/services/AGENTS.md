@@ -9,7 +9,12 @@
 ```
 services/
 - products.service.ts     # Product business logic (create, update, list)
+- productSearch.service.ts        # Product search filters and sorting helpers
+- productTransformation.service.ts# Product payload shaping/helpers
 - vouchers.service.ts     # Voucher business logic (create, update, delete, list)
+- voucherSearch.service.ts        # Voucher search helpers
+- voucherTransformation.service.ts# Voucher payload shaping/helpers
+- fees.service.ts         # Shop fee business logic
 - changeLogs.service.ts   # Changelog recording and retrieval
 ```
 
@@ -286,6 +291,9 @@ await recordChange({
 - `ProductStatusOption` - Status dropdown options
 - `SupplierOption` - Supplier dropdown options
 
+### `productSearch.service.ts` / `productTransformation.service.ts`
+**Handles:** Product filtering/sorting logic and shaping data into UI-friendly payloads.
+
 ### `vouchers.service.ts`
 **Handles:** Voucher/discount management
 
@@ -300,6 +308,12 @@ await recordChange({
 - `VouchersPagePayload` - Full payload for vouchers page
 - `VoucherCreateResult` - Result of voucher creation
 - `discountLabelByType()` - Utility to format discount display
+
+### `voucherSearch.service.ts` / `voucherTransformation.service.ts`
+**Handles:** Voucher filtering/sorting logic and payload shaping for UI.
+
+### `fees.service.ts`
+**Handles:** Shop fee CRUD and validation (cents for fixed, basis points for percentage).
 
 ### `changeLogs.service.ts`
 **Handles:** Audit trail recording and retrieval

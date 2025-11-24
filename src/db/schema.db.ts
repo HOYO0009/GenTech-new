@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { integer, sqliteTable, text, primaryKey, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 export const productStatuses = sqliteTable('product_statuses', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -16,7 +16,7 @@ export const categories = (() => {
   const table = sqliteTable('categories', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     name: text('name').notNull().unique(),
-    parentId: integer('parent_id').references(() => table.id),
+    parentId: integer('parent_id').references(() => table.id, { onDelete: 'set null' }),
   })
 
   return table
@@ -34,6 +34,7 @@ export const products = sqliteTable('products', {
   supplierLink: text('supplier_link'),
   purchaseRemarks: text('purchase_remarks'),
   supplierId: integer('supplier_id').references(() => suppliers.id),
+  imageUrl: text('image_url'),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   categoryId: integer('category_id').references(() => categories.id),
@@ -45,7 +46,9 @@ export const listings = sqliteTable('listings', {
   listingCode: text('listing_code').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-})
+}, (table) => ({
+  listingCodeUnique: uniqueIndex('listings_listing_code_unique').on(table.listingCode),
+}))
 
 export const shops = sqliteTable('shops', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -55,13 +58,35 @@ export const shops = sqliteTable('shops', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 })
 
+export const shopFees = sqliteTable('shop_fees', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  shopId: integer('shop_id')
+    .references(() => shops.id),
+  feeType: text('fee_type').notNull(), // 'fixed' | 'percentage'
+  amount: integer('amount').notNull(), // cents for fixed, basis points for percentage
+  label: text('label'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
 export const listingShops = sqliteTable('listing_shops', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  listingId: integer('listing_id').references(() => listings.id),
+  listingId: integer('listing_id').notNull().references(() => listings.id, { onDelete: 'cascade' }),
   shopId: integer('shop_id').notNull().references(() => shops.id),
   title: text('title'),
   description: text('description'),
-})
+}, (table) => ({
+  listingShopUnique: uniqueIndex('listing_shops_listing_shop_unique').on(table.listingId, table.shopId),
+}))
+
+export const listingProducts = sqliteTable('listing_products', {
+  listingId: integer('listing_id').notNull().references(() => listings.id, { onDelete: 'cascade' }),
+  productSku: text('product_sku').notNull().references(() => products.sku, { onDelete: 'cascade' }),
+  position: integer('position').default(0),
+  role: text('role').notNull().default('other'),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.listingId, table.productSku], name: 'listing_products_pk' }),
+}))
 
 export const productPricing = sqliteTable('product_pricing', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -69,9 +94,6 @@ export const productPricing = sqliteTable('product_pricing', {
   shopId: integer('shop_id').notNull().references(() => shops.id),
   moq: integer('moq'),
   sellPrice: integer('sell_price'), // cents
-  actualSellPrice: integer('actual_sell_price'), // cents
-  minAdRoas: real('min_ad_roas'),
-  maxAff: real('max_aff'),
   competitorPrice: integer('competitor_price'), // cents
   competitorLink: text('competitor_link'),
 })
@@ -120,6 +142,19 @@ export type NewProduct = typeof products.$inferInsert
 
 export type ProductPricing = typeof productPricing.$inferSelect
 export type NewProductPricing = typeof productPricing.$inferInsert
+
+export type Category = typeof categories.$inferSelect
+export type NewCategory = typeof categories.$inferInsert
+
+export type Listing = typeof listings.$inferSelect
+export type NewListing = typeof listings.$inferInsert
+export type ListingShop = typeof listingShops.$inferSelect
+export type NewListingShop = typeof listingShops.$inferInsert
+export type ListingProduct = typeof listingProducts.$inferSelect
+export type NewListingProduct = typeof listingProducts.$inferInsert
+
+export type ShopFee = typeof shopFees.$inferSelect
+export type NewShopFee = typeof shopFees.$inferInsert
 
 export type VoucherDiscountType = typeof voucherDiscountTypes.$inferSelect
 export type NewVoucherDiscountType = typeof voucherDiscountTypes.$inferInsert

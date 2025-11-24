@@ -201,12 +201,14 @@ export const registerVoucherRoutes = (app: Hono) => {
   app.get('/vouchers', async (c) => {
     const search = c.req.query('search') ?? ''
     const sortQuery = c.req.query('sort') ?? ''
-    const sort: VoucherSortOption = ['date-desc', 'date-asc', 'shop-asc', 'shop-desc'].includes(sortQuery)
+    const sort: VoucherSortOption = ['min-spend-asc', 'min-spend-desc', 'max-discount-asc', 'max-discount-desc'].includes(sortQuery)
       ? (sortQuery as VoucherSortOption)
-      : 'date-desc'
+      : 'min-spend-asc'
+    const pageQuery = Number(c.req.query('page') ?? '1')
+    const page = Number.isFinite(pageQuery) && pageQuery > 0 ? Math.floor(pageQuery) : 1
     const shopFilters = (c.req.queries('shopId') ?? []).map((value) => Number(value)).filter(Number.isFinite)
-    const payload = await getVouchersPagePayload({ search, sort, shopIds: shopFilters })
-    return c.html(vouchersPage(payload, '', undefined, search, sort, shopFilters))
+    const payload = await getVouchersPagePayload({ search, sort, shopIds: shopFilters, page })
+    return c.html(vouchersPage(payload, '', undefined, search, sort, shopFilters, page))
   })
 
   app.get('/vouchers/manage', async (c) => {

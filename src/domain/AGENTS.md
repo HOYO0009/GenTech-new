@@ -8,8 +8,22 @@
 
 ```
 domain/
-- formatters.domain.ts   # Money, timestamp, HTML, and JSON formatting utilities
-- strategies/            # Filtering/sorting strategies (camelCase filenames)
+- formatters.domain.ts        # Money, timestamp, HTML, and JSON formatting utilities
+- currency.domain.ts         # Money helpers (basis points, cents conversions)
+- search.domain.ts           # Search helpers
+- filter.domain.ts           # Filter helpers
+- sort.domain.ts             # Sort helpers
+- sanitizers.domain.ts       # Sanitization helpers
+- normalizers.domain.ts      # Normalization helpers
+- listOperations.domain.ts   # List set operations
+- shortcuts.domain.ts        # Keyboard/shortcut helpers
+- results.domain.ts          # Result helpers
+- delete.domain.ts           # Delete helpers
+- changeService.domain.ts    # Change/audit helpers
+- detectors.domain.ts        # Detector utilities
+- validators.domain.ts       # Validation helpers
+- matches.domain.ts          # Matching helpers
+- strategies/                # Filtering/sorting strategies (camelCase filenames)
 ```
 
 **Naming convention:** `<feature>.domain.ts` for shared utilities. Strategies inside `strategies/` use camelCase filenames (e.g. `voucherSort.strategy.ts`, `filterStrategy.interface.ts`) with PascalCase classes.

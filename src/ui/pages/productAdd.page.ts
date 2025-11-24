@@ -4,7 +4,7 @@ import { ProductPagePayload } from '../../services/products.service'
 
 const safeJson = (data: unknown) => JSON.stringify(data).replace(/<\/script>/g, '<\\/script>')
 
-export const productAddPage = ({ products, statuses, suppliers }: ProductPagePayload) => {
+export const productAddPage = ({ products, statuses, suppliers, shops }: ProductPagePayload) => {
   const statusOptions = statuses
     .map((option) => `<option value="${option.id}">${option.name}</option>`)
     .join('')
@@ -12,6 +12,16 @@ export const productAddPage = ({ products, statuses, suppliers }: ProductPagePay
     '<option value="">Unassigned</option>',
     ...suppliers.map((supplier) => `<option value="${supplier.id}">${supplier.name}</option>`),
   ].join('')
+  const shopOptions = shops
+    .map(
+      (shop) => `
+        <label class="group flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.05)] transition hover:border-white/30 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.12)]">
+          <input class="${uiClasses.input.checkbox} accent-[#ff2b2b]" type="checkbox" name="shopIds" value="${shop.id}" />
+          <span class="${uiClasses.text.body}">${shop.name}</span>
+        </label>
+      `
+    )
+    .join('')
   const productJson = safeJson(products)
 
   const form = `
@@ -98,6 +108,12 @@ export const productAddPage = ({ products, statuses, suppliers }: ProductPagePay
               placeholder="Delivery details, packaging notes, etc."
             ></textarea>
           </label>
+          <div class="${uiClasses.layout.space.y2}">
+            <p class="${uiClasses.text.labelBright}">Stores</p>
+            <div class="flex flex-wrap gap-2">
+              ${shopOptions || `<p class="${uiClasses.text.bodySmall} text-white/60">No stores configured.</p>`}
+            </div>
+          </div>
           <div class="${uiClasses.layout.space.y2}">
             <p class="${uiClasses.text.labelBright} hidden text-amber-400" data-add-unique-sku-warning>
               SKU already exists. Choose a different identifier.

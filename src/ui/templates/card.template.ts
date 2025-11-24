@@ -156,177 +156,225 @@ export const inlineCardScript = `
     <script>
       (() => {
         const feedbackTimers = new WeakMap()
-        const closePanels = (card) => {
-          card.querySelectorAll('[data-inline-panel]').forEach((panel) => panel.classList.add('hidden'))
+
+        const disableInputs = (nodes, disabled) => {
+          nodes.forEach((node) => {
+            if (node instanceof HTMLInputElement || node instanceof HTMLSelectElement || node instanceof HTMLTextAreaElement) {
+              node.disabled = disabled
+            }
+          })
         }
-        const triggerClose = (card) => {
-          const closeBtn = card.querySelector('[data-inline-close]')
-          if (closeBtn instanceof HTMLElement) {
-            closeBtn.dispatchEvent(new Event('click', { bubbles: true }))
-            return
+
+        const syncShopCards = (card) => {
+          if (!card) return
+          const editing = card.dataset.inlineEditing === 'true'
+          const selected = new Set(
+            Array.from(card.querySelectorAll('[data-shop-checkbox]'))
+              .filter((cb) => cb instanceof HTMLInputElement && cb.checked)
+              .map((cb) => (cb instanceof HTMLInputElement ? cb.value : ''))
+              .filter(Boolean)
+          )
+          card.querySelectorAll('[data-shop-card]').forEach((shopCard) => {
+            const shopId = shopCard.getAttribute('data-shop-id')
+            const show = shopId && selected.has(shopId)
+            shopCard.classList.toggle('hidden', !show)
+            disableInputs(shopCard.querySelectorAll('input, select, textarea'), !editing || !show)
+          })
+        }
+
+        const setDeleteState = (card, deleting) => {
+          if (!card) return
+          card.dataset.inlineDeleting = deleting ? 'true' : 'false'
+          const mainSections = card.querySelectorAll('[data-main-section]')
+          const deleteSection = card.querySelector('[data-delete-section]')
+          mainSections.forEach((section) => section.classList.toggle('hidden', deleting))
+          if (deleteSection) {
+            deleteSection.classList.toggle('hidden', !deleting)
+            if (deleting) {
+              const input = deleteSection.querySelector('input, textarea')
+              if (input instanceof HTMLElement) input.focus()
+            }
           }
-          closePanels(card)
-        }
-        const togglePanels = (card, target) => {
-          const panel = card.querySelector('[data-inline-panel="' + target + '"]')
-          if (!panel) return
-          const isHidden = panel.classList.contains('hidden')
-          closePanels(card)
-          if (isHidden) {
-            panel.classList.remove('hidden')
+          const deleteButton = card.querySelector('[data-inline-delete]')
+          if (deleteButton instanceof HTMLButtonElement) {
+            const deleteClass = deleteButton.dataset.deleteClass || deleteButton.className
+            const cancelClass = deleteButton.dataset.cancelClass || deleteButton.className
+            deleteButton.textContent = deleting ? 'Cancel' : 'Delete'
+            deleteButton.className = deleting ? cancelClass : deleteClass
+          }
+          const editButton = card.querySelector('[data-inline-edit]')
+          if (editButton instanceof HTMLButtonElement) {
+            editButton.disabled = deleting
           }
         }
+
+        const setEditingState = (card, editing) => {
+          if (!card) return
+          setDeleteState(card, false)
+          card.dataset.inlineEditing = editing ? 'true' : 'false'
+          const editFields = card.querySelectorAll('[data-edit-field]')
+          const viewFields = card.querySelectorAll('[data-view-field]')
+          editFields.forEach((field) => field.classList.toggle('hidden', !editing))
+          viewFields.forEach((field) => field.classList.toggle('hidden', editing))
+          disableInputs(editFields, !editing)
+          editFields.forEach((field) => {
+            const nestedInputs = field.querySelectorAll('input, select, textarea')
+            disableInputs(nestedInputs, !editing)
+          })
+          const editButton = card.querySelector('[data-inline-edit]')
+          if (editButton instanceof HTMLButtonElement) {
+            editButton.textContent = editing ? 'Save' : 'Edit'
+            editButton.type = editing ? 'submit' : 'button'
+          }
+          const deleteButton = card.querySelector('[data-inline-delete]')
+          if (deleteButton instanceof HTMLElement) {
+            const deleteClass = deleteButton.dataset.deleteClass || deleteButton.className
+            const cancelClass = deleteButton.dataset.cancelClass || deleteButton.className
+            deleteButton.textContent = editing ? 'Discard' : 'Delete'
+            deleteButton.className = editing ? cancelClass : deleteClass
+            deleteButton.dataset.inlineDiscard = editing ? 'true' : 'false'
+          }
+          if (editing) {
+            const firstInput = card.querySelector('[data-edit-field]:not([disabled]) input, [data-edit-field]:not([disabled]) select, [data-edit-field]:not([disabled]) textarea')
+            if (firstInput instanceof HTMLElement) firstInput.focus()
+          }
+          card.dispatchEvent(new CustomEvent('inline:refresh-prices', { detail: { card }, bubbles: true }))
+          syncShopCards(card)
+        }
+
         const scheduleFeedbackClear = (feedback) => {
           const existing = feedbackTimers.get(feedback)
-          if (existing) {
-            clearTimeout(existing)
-          }
+          if (existing) clearTimeout(existing)
           const timer = window.setTimeout(() => {
             feedback.innerHTML = ''
             feedbackTimers.delete(feedback)
           }, 2500)
           feedbackTimers.set(feedback, timer)
         }
-        const isSuccessFeedback = (feedback) => {
-          const statusAttr =
-            feedback.getAttribute('data-inline-feedback-status') ||
-            feedback.querySelector('[data-inline-feedback-status]')?.getAttribute('data-inline-feedback-status') ||
-            ''
-          if (statusAttr === 'success') return true
-          return feedback.matches('.text-emerald-300') || Boolean(feedback.querySelector('.text-emerald-300'))
-        }
+
         const handleFeedbackSwap = (feedback) => {
           const existingTimer = feedbackTimers.get(feedback)
           if (existingTimer) {
             clearTimeout(existingTimer)
             feedbackTimers.delete(feedback)
           }
-          const hasSuccess = isSuccessFeedback(feedback)
-          if (!hasSuccess) return
+          const statusAttr =
+            feedback.getAttribute('data-inline-feedback-status') ||
+            feedback.querySelector('[data-inline-feedback-status]')?.getAttribute('data-inline-feedback-status') ||
+            ''
+          if (statusAttr !== 'success' && !feedback.matches('.text-emerald-300') && !feedback.querySelector('.text-emerald-300')) {
+            return
+          }
           const card = feedback.closest('[data-inline-card]')
           if (card) {
-            triggerClose(card)
+            setEditingState(card, false)
+            setDeleteState(card, false)
           }
           scheduleFeedbackClear(feedback)
         }
+
         const initInlineCard = (card) => {
-          if (card.dataset.inlineReady === 'true') return
+          if (!card || card.dataset.inlineReady === 'true') return
           card.dataset.inlineReady = 'true'
+          setEditingState(card, false)
+          syncShopCards(card)
         }
+
         const scanForCards = (root) => {
-          const cards = root.matches && root.matches('[data-inline-card]')
+          const cards = root && root.matches && root.matches('[data-inline-card]')
             ? [root]
-            : root.querySelectorAll
+            : root && root.querySelectorAll
             ? root.querySelectorAll('[data-inline-card]')
             : []
           cards.forEach((card) => initInlineCard(card))
         }
-        const handleInlineToggleClick = (event) => {
-          const toggleButton = event.target instanceof HTMLElement ? event.target.closest('[data-inline-toggle]') : null
-          if (!toggleButton) return
-          const card = toggleButton.closest('[data-inline-card]')
-          if (!card) return
-          event.preventDefault()
-          togglePanels(card, toggleButton.dataset.inlineToggle || '')
-        }
-        const handleInlineCloseClick = (event) => {
-          const closeButton = event.target instanceof HTMLElement ? event.target.closest('[data-inline-close]') : null
-          if (!closeButton) return
-          const card = closeButton.closest('[data-inline-card]')
-          if (!card) return
-          event.preventDefault()
-          closePanels(card)
-        }
-        const evaluateFeedback = (root = document) => {
-          const feedbackTargets = root.querySelectorAll
-            ? root.querySelectorAll('[data-inline-feedback]')
-            : []
-          feedbackTargets.forEach((feedback) => handleFeedbackSwap(feedback))
-        }
-        const isSuccessfulRequest = (detail) => {
-          if (!detail) return false
-          if (detail.successful === true) return true
-          if (detail.failed === true) return false
-          if (detail.xhr && typeof detail.xhr.status === 'number') {
-            return detail.xhr.status >= 200 && detail.xhr.status < 300
+
+        document.addEventListener('click', (event) => {
+          const deleteToggle = event.target instanceof HTMLElement ? event.target.closest('[data-inline-delete]') : null
+          const editToggle = event.target instanceof HTMLElement ? event.target.closest('[data-inline-edit]') : null
+          const discard = event.target instanceof HTMLElement ? event.target.closest('[data-inline-discard]') : null
+          if (deleteToggle) {
+            const card = deleteToggle.closest('[data-inline-card]')
+            if (!card) return
+            const isDiscard = deleteToggle.dataset.inlineDiscard === 'true'
+            event.preventDefault()
+            if (isDiscard) {
+              const form = card.querySelector('form')
+              if (form instanceof HTMLFormElement) form.reset()
+              setEditingState(card, false)
+              return
+            }
+            const deleting = card.dataset.inlineDeleting === 'true'
+            setDeleteState(card, !deleting)
+            return
           }
-          return false
-        }
-        const findCard = (detail, event) => {
-          const fromTarget =
-            detail && detail.target instanceof HTMLElement ? detail.target.closest('[data-inline-card]') : null
-          const fromElt =
-            detail && detail.elt instanceof HTMLElement ? detail.elt.closest('[data-inline-card]') : null
-          const fromRequestElt =
-            detail && detail.requestConfig && detail.requestConfig.elt instanceof HTMLElement
-              ? detail.requestConfig.elt.closest('[data-inline-card]')
-              : null
-          const fromEventTarget = event && event.target instanceof HTMLElement
-            ? event.target.closest('[data-inline-card]')
-            : null
-          return fromTarget || fromElt || fromRequestElt || fromEventTarget || null
-        }
-        const findCardForNode = (node) => {
-          if (!(node instanceof HTMLElement)) return null
-          return node.closest('[data-inline-card]')
-        }
-        const handleSwapEvent = (event) => {
+          if (editToggle) {
+            const card = editToggle.closest('[data-inline-card]')
+            if (!card) return
+            const isEditing = card.dataset.inlineEditing === 'true'
+            if (!isEditing) {
+              event.preventDefault()
+              setEditingState(card, true)
+            }
+            return
+          }
+          if (discard) {
+            const card = discard.closest('[data-inline-card]')
+            if (!card) return
+            event.preventDefault()
+            setEditingState(card, false)
+            return
+          }
+        })
+
+        document.addEventListener('change', (event) => {
+          const checkbox = event.target instanceof HTMLElement ? event.target.closest('[data-shop-checkbox]') : null
+          if (!checkbox) return
+          const card = checkbox.closest('[data-inline-card]')
+          if (!card) return
+          syncShopCards(card)
+        })
+
+        document.addEventListener('htmx:afterSwap', (event) => {
           const target = event.detail && event.detail.target instanceof HTMLElement ? event.detail.target : null
           if (target) {
             scanForCards(target)
-            evaluateFeedback(target)
+            const feedbackTargets = target.querySelectorAll ? target.querySelectorAll('[data-inline-feedback]') : []
+            feedbackTargets.forEach((feedback) => handleFeedbackSwap(feedback))
           }
-          const card = findCard(event.detail, event)
-          if (card && isSuccessfulRequest(event.detail)) {
-            triggerClose(card)
-          }
-          evaluateFeedback(document)
-        }
-        const handleInlineSaved = (event) => {
-          const target = event.target instanceof HTMLElement ? event.target : null
-          const detailCardId =
-            event.detail && typeof event.detail === 'object' && 'cardId' in event.detail
-              ? event.detail.cardId
-              : null
-          const cardFromTarget = target ? findCardForNode(target) : null
-          const card =
-            cardFromTarget ||
-            (detailCardId ? document.querySelector('[data-inline-card="' + detailCardId + '"]') : null)
+          const card = (event.detail && event.detail.target && (event.detail.target.closest ? event.detail.target.closest('[data-inline-card]') : null)) || null
           if (card) {
-            triggerClose(card)
+            setEditingState(card, false)
+            setDeleteState(card, false)
           }
-        }
-        const handleAfterRequest = (event) => {
-          if (!isSuccessfulRequest(event.detail)) return
+        })
+
+        document.addEventListener('htmx:afterRequest', (event) => {
+          const status = event.detail && event.detail.xhr ? event.detail.xhr.status : null
+          if (!status || status >= 300) return
           const elt = event.detail && event.detail.elt instanceof HTMLElement ? event.detail.elt : null
-          const inlineCardId =
-            elt && elt.matches('form[data-inline-card-id]') ? elt.getAttribute('data-inline-card-id') : null
-          const directCard =
-            inlineCardId ? document.querySelector('[data-inline-card="' + inlineCardId + '"]') : null
-          const card = directCard || (elt ? findCardForNode(elt) : findCard(event.detail, event))
+          const inlineCardId = elt && elt.matches('form[data-inline-card-id]') ? elt.getAttribute('data-inline-card-id') : null
+          const card = inlineCardId ? document.querySelector('[data-inline-card=\"' + inlineCardId + '\"]') : elt?.closest?.('[data-inline-card]')
           if (card) {
-            triggerClose(card)
+            setEditingState(card, false)
+            setDeleteState(card, false)
           }
-        }
-        const handleAfterOnLoad = (event) => {
-          if (!isSuccessfulRequest(event.detail)) return
-          const card = findCard(event.detail, event)
+        })
+
+        document.addEventListener('inline-card-saved', (event) => {
+          const detailCardId = event.detail && typeof event.detail === 'object' && 'cardId' in event.detail ? event.detail.cardId : null
+          const card = detailCardId ? document.querySelector('[data-inline-card=\"' + detailCardId + '\"]') : null
           if (card) {
-            triggerClose(card)
+            setEditingState(card, false)
+            setDeleteState(card, false)
           }
-        }
+        })
+
         document.addEventListener('DOMContentLoaded', () => {
           scanForCards(document)
-          evaluateFeedback(document)
+          const feedbackTargets = document.querySelectorAll('[data-inline-feedback]')
+          feedbackTargets.forEach((feedback) => handleFeedbackSwap(feedback))
         })
-        document.addEventListener('click', handleInlineToggleClick)
-        document.addEventListener('click', handleInlineCloseClick)
-        document.addEventListener('htmx:afterSwap', handleSwapEvent)
-        document.addEventListener('htmx:oobAfterSwap', handleSwapEvent)
-        document.addEventListener('htmx:afterRequest', handleAfterRequest)
-        document.addEventListener('htmx:afterOnLoad', handleAfterOnLoad)
-        document.addEventListener('inline-card-saved', handleInlineSaved)
-        document.addEventListener('inline-panel-close', handleInlineSaved)
       })()
     </script>
   `

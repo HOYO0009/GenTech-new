@@ -2,7 +2,7 @@ import sqlite3
 
 MONEY_COLUMNS = {
     'products': ['cost'],
-    'product_pricing': ['sell_price', 'actual_sell_price', 'competitor_price'],
+    'product_pricing': ['sell_price', 'competitor_price'],
     'purchases': ['total_amount_paid', 'total_amount_paid_sgd'],
     'purchase_items': [
         'unit_cost',

@@ -11,6 +11,7 @@ db/
 - schema.db.ts       # All table definitions (single source of truth)
 - connection.db.ts   # SQLite database client setup
 - products.db.ts     # Product-related queries
+- fees.db.ts         # Shop fee queries (cents/bps)
 - vouchers.db.ts     # Voucher-related queries
 - changeLogs.db.ts   # Changelog queries
 ```
@@ -291,6 +292,7 @@ INSERT INTO product_statuses (name) VALUES
 | `shops` | Shop/platform definitions (Shopee, Lazada, etc.) |
 | `listing_shops` | Listing metadata per shop |
 | `product_pricing` | Pricing strategy per product per shop |
+| `shop_fees` | Shop-level fees (fixed cents or percentage bps) |
 | `vouchers` | Discount vouchers |
 | `voucher_discount_types` | Voucher type lookup (percentage, fixed) |
 | `voucher_types` | Voucher category lookup |
@@ -317,6 +319,9 @@ vouchers
 
 listing_shops
   -> listings (listing)
+  -> shops (shop)
+
+shop_fees
   -> shops (shop)
 ```
 
